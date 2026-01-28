@@ -34,3 +34,18 @@ end
 if defined?(IRB)
   Girb.setup!
 end
+
+# binding.girb サポート
+class Binding
+  def girb
+    require "irb"
+    Girb.setup! unless defined?(IRB::Command::Qq)
+
+    # IRB.start with this binding
+    IRB.setup(source_location[0], argv: [])
+    workspace = IRB::WorkSpace.new(self)
+    irb = IRB::Irb.new(workspace)
+    IRB.conf[:MAIN_CONTEXT] = irb.context
+    irb.run(IRB.conf)
+  end
+end
