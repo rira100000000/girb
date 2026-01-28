@@ -71,9 +71,14 @@ module Girb
           tool_name = function_call["name"]
           tool_args = function_call["args"] || {}
 
-          puts "[girb] Calling tool: #{tool_name}" if Girb.configuration.debug
+          puts "[girb] Tool: #{tool_name}(#{tool_args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
 
           result = execute_tool(tool_name, tool_args)
+
+          # エラーがあれば表示
+          if result.is_a?(Hash) && result[:error]
+            puts "[girb] Tool error: #{result[:error]}"
+          end
 
           # 継続用のcontentsを構築
           original_contents = [{ role: "user", parts: [{ text: current_prompt }] }]

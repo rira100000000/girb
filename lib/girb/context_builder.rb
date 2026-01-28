@@ -11,6 +11,7 @@ module Girb
 
     def build
       {
+        source_location: capture_source_location,
         local_variables: capture_locals,
         instance_variables: capture_instance_variables,
         class_variables: capture_class_variables,
@@ -23,6 +24,19 @@ module Girb
     end
 
     private
+
+    def capture_source_location
+      loc = @binding.source_location
+      return nil unless loc
+
+      file, line = loc
+      {
+        file: file,
+        line: line
+      }
+    rescue StandardError
+      nil
+    end
 
     def capture_locals
       @binding.local_variables.to_h do |var|

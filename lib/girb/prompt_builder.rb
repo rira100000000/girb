@@ -32,6 +32,9 @@ module Girb
 
         ## 現在のコンテキスト
 
+        ### 実行位置
+        #{format_source_location}
+
         ### ローカル変数
         #{format_locals}
 
@@ -53,6 +56,13 @@ module Girb
     end
 
     private
+
+    def format_source_location
+      loc = @context[:source_location]
+      return "(不明)" unless loc
+
+      "ファイル: #{loc[:file]}\n行番号: #{loc[:line]}"
+    end
 
     def format_locals
       return "(なし)" if @context[:local_variables].empty?
