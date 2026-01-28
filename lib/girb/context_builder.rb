@@ -12,6 +12,9 @@ module Girb
     def build
       {
         local_variables: capture_locals,
+        instance_variables: capture_instance_variables,
+        class_variables: capture_class_variables,
+        global_variables: capture_global_variables,
         self_info: capture_self,
         last_value: capture_last_value,
         last_exception: ExceptionCapture.last_exception,
@@ -25,6 +28,40 @@ module Girb
       @binding.local_variables.to_h do |var|
         value = @binding.local_variable_get(var)
         [var, safe_inspect(value)]
+      end
+    end
+
+    def capture_instance_variables
+      obj = @binding.receiver
+      obj.instance_variables.to_h do |var|
+        value = obj.instance_variable_get(var)
+        [var, safe_inspect(value)]
+      end
+    rescue StandardError
+      {}
+    end
+
+    def capture_class_variables
+      obj = @binding.receiver
+      klass = obj.is_a?(Class) ? obj : obj.class
+      klass.class_variables.to_h do |var|
+        value = klass.class_variable_get(var)
+        [var, safe_inspect(value)]
+      end
+    rescue StandardError
+      {}
+    end
+
+    def capture_global_variables
+      # よく使われる重要なグローバル変数のみ収集（全部は多すぎる）
+      important_globals = %i[$! $@ $~ $& $` $' $+ $1 $2 $3 $stdin $stdout $stderr $DEBUG $VERBOSE $LOAD_PATH $LOADED_FEATURES]
+      important_globals.each_with_object({}) do |var, hash|
+        next unless global_variables.include?(var)
+
+        value = eval(var.to_s) # rubocop:disable Security/Eval
+        hash[var] = safe_inspect(value) unless value.nil?
+      rescue StandardError
+        next
       end
     end
 
