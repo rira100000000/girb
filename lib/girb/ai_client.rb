@@ -95,7 +95,9 @@ module Girb
           tool_name = function_call["name"]
           tool_args = function_call["args"] || {}
 
-          puts "[girb] Tool: #{tool_name}(#{tool_args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
+          if Girb.configuration.debug
+            puts "[girb] Tool: #{tool_name}(#{tool_args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
+          end
 
           result = execute_tool(tool_name, tool_args)
 
@@ -109,8 +111,8 @@ module Girb
           # 会話履歴にツール呼び出しを記録
           ConversationHistory.add_tool_call(tool_name, tool_args, result)
 
-          # エラーがあれば表示
-          if result.is_a?(Hash) && result[:error]
+          # エラーがあれば表示（デバッグ時のみ）
+          if Girb.configuration.debug && result.is_a?(Hash) && result[:error]
             puts "[girb] Tool error: #{result[:error]}"
           end
 
@@ -131,13 +133,11 @@ module Girb
             record_ai_response(full_text)
           elsif response.error
             puts "[girb] API Error: #{response.error}"
-          else
-            # 予期しないレスポンス形式
+          elsif Girb.configuration.debug
+            # 予期しないレスポンス形式（デバッグ時のみ表示）
             puts "[girb] Warning: Empty or unexpected response"
-            if Girb.configuration.debug
-              puts "[girb] Response: #{response.inspect}"
-              puts "[girb] Raw response: #{response.raw_data.inspect}" if response.respond_to?(:raw_data)
-            end
+            puts "[girb] Response: #{response.inspect}"
+            puts "[girb] Raw response: #{response.raw_data.inspect}" if response.respond_to?(:raw_data)
           end
           break
         end
@@ -190,12 +190,12 @@ module Girb
 
       response
     rescue Faraday::BadRequestError => e
-      puts "[girb] API Error (BadRequest): #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+      puts "[girb] API Error: #{e.message}"
+      puts e.backtrace.first(5).join("\n") if Girb.configuration.debug
       nil
     rescue StandardError => e
-      puts "[girb] Error: #{e.class} - #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+      puts "[girb] Error: #{e.message}"
+      puts e.backtrace.first(5).join("\n") if Girb.configuration.debug
       nil
     end
 
@@ -219,12 +219,12 @@ module Girb
 
       response
     rescue Faraday::BadRequestError => e
-      puts "[girb] API Error (BadRequest): #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+      puts "[girb] API Error: #{e.message}"
+      puts e.backtrace.first(5).join("\n") if Girb.configuration.debug
       nil
     rescue StandardError => e
-      puts "[girb] Error: #{e.class} - #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+      puts "[girb] Error: #{e.message}"
+      puts e.backtrace.first(5).join("\n") if Girb.configuration.debug
       nil
     end
 
