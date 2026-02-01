@@ -56,7 +56,7 @@ module Girb
     # 従来の単一プロンプト形式（後方互換性のため）
     def build
       <<~PROMPT
-        #{SYSTEM_PROMPT}
+        #{system_prompt}
 
         #{build_context_section}
 
@@ -67,7 +67,12 @@ module Girb
 
     # システムプロンプト（会話全体で共通）
     def system_prompt
-      SYSTEM_PROMPT
+      custom = Girb.configuration&.custom_prompt
+      if custom && !custom.empty?
+        "#{SYSTEM_PROMPT}\n\n## ユーザー定義の追加指示\n#{custom}"
+      else
+        SYSTEM_PROMPT
+      end
     end
 
     # ユーザーメッセージ（コンテキスト + 質問）
