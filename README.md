@@ -14,6 +14,10 @@ An AI assistant embedded in your IRB session. It understands your runtime contex
 - **Customizable**: Add custom prompts for project-specific instructions
 - **Provider Agnostic**: Use Gemini, OpenAI, or implement your own LLM provider
 
+## Available Providers
+
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+
 ## Installation
 
 Add to your Gemfile:

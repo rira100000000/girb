@@ -12,6 +12,10 @@ IRBセッションに組み込まれたAIアシスタント。実行中のコン
 - **カスタマイズ可能**: 独自のプロンプトを追加して、プロジェクト固有の指示を設定可能
 - **プロバイダー非依存**: Gemini、OpenAI、または独自のLLMプロバイダーを実装可能
 
+## 利用可能なプロバイダー
+
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+
 ## インストール
 
 Gemfileに追加:
