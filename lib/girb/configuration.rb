@@ -7,7 +7,7 @@ module Girb
     def initialize
       @gemini_api_key = ENV["GEMINI_API_KEY"]
       @model = "gemini-2.5-flash"
-      @debug = false
+      @debug = ENV["GIRB_DEBUG"] == "1"
     end
   end
 end

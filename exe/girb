@@ -2,8 +2,6 @@
 # frozen_string_literal: true
 
 require "optparse"
-require "irb"
-require "girb"
 
 options = {}
 OptionParser.new do |opts|
@@ -19,8 +17,10 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-Girb.configure do |config|
-  config.debug = options[:debug] || false
-end
+# 環境変数でデバッグフラグを渡す（girb.rb より先に設定が必要）
+ENV["GIRB_DEBUG"] = "1" if options[:debug]
+
+require "irb"
+require "girb"
 
 IRB.start
