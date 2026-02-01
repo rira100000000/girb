@@ -1,7 +1,26 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "optparse"
 require "irb"
 require "girb"
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: girb [options]"
+
+  opts.on("-d", "--debug", "Enable debug output") do
+    options[:debug] = true
+  end
+
+  opts.on("-h", "--help", "Show this help") do
+    puts opts
+    exit
+  end
+end.parse!
+
+Girb.configure do |config|
+  config.debug = options[:debug] || false
+end
 
 IRB.start
