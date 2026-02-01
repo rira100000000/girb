@@ -6,11 +6,13 @@ An AI assistant embedded in your IRB session. It understands your runtime contex
 
 ## Features
 
-- **Context Awareness**: Automatically understands local variables, instance variables, and recent exceptions
+- **Context Awareness**: Automatically understands local variables, instance variables, and self object
+- **Exception Capture**: Automatically captures recent exceptions - just ask "why did this fail?" after an error
 - **Session History Understanding**: Tracks IRB input history and understands conversation flow
 - **Tool Execution**: AI autonomously executes code, inspects objects, and retrieves source code
 - **Multi-language Support**: Detects user's language and responds in the same language
 - **Customizable**: Add custom prompts for project-specific instructions
+- **Provider Agnostic**: Use Gemini, OpenAI, or implement your own LLM provider
 
 ## Installation
 
@@ -18,6 +20,7 @@ Add to your Gemfile:
 
 ```ruby
 gem 'girb'
+gem 'girb-gemini'  # or other provider
 ```
 
 Then run:
@@ -29,40 +32,56 @@ bundle install
 Or install directly:
 
 ```bash
-gem install girb
+gem install girb girb-gemini
 ```
 
 ## Setup
 
-### Configure API Key
+### Using Gemini (Recommended)
 
-Set your Gemini API key as an environment variable:
+Set your API key as an environment variable:
 
 ```bash
 export GEMINI_API_KEY=your-api-key
 ```
 
-Or configure in `.irbrc`:
+Add to your `~/.irbrc`:
 
 ```ruby
+require 'girb-gemini'
+```
+
+That's it! The Gemini provider auto-configures when `GEMINI_API_KEY` is set.
+
+### Using Other Providers
+
+Implement your own provider or use community providers:
+
+```ruby
+require 'girb'
+
 Girb.configure do |c|
-  c.gemini_api_key = 'your-api-key'
+  c.provider = MyCustomProvider.new(api_key: "...")
 end
 ```
 
+See [Custom Providers](#custom-providers) for implementation details.
+
 ## Usage
 
-### Start with girb command
+### Quick Start
 
 ```bash
 girb
 ```
 
-### Use in existing IRB session
+Or add to your `~/.irbrc` for automatic loading:
 
 ```ruby
-require 'girb'
+require 'girb-gemini'
 ```
+
+Then use regular `irb` command.
 
 ### Debug with binding.girb
 
@@ -92,29 +111,19 @@ irb(main):001> What's causing this error?[Ctrl+Space]
 irb(main):001> qq "How do I use this method?"
 ```
 
-#### Method 3: AI Chat Mode
-
-```
-irb(main):001> qq-chat
-[girb] AI Mode ON - Ask questions in natural language (exit: qq-chat)
-irb(main):002> I want to check the user object's attributes
-```
-
-In chat mode, prefix with `>` to execute Ruby code:
-
-```
-irb(main):003> > user.attributes
-```
-
 ## Configuration Options
 
-```ruby
-Girb.configure do |c|
-  # API key (required)
-  c.gemini_api_key = ENV['GEMINI_API_KEY']
+Add to your `~/.irbrc`:
 
-  # Model to use (default: gemini-2.5-flash)
-  c.model = 'gemini-2.5-flash'
+```ruby
+require 'girb-gemini'
+
+Girb.configure do |c|
+  # Provider configuration (girb-gemini auto-configures, but you can customize)
+  c.provider = Girb::Providers::Gemini.new(
+    api_key: ENV['GEMINI_API_KEY'],
+    model: 'gemini-2.5-flash'
+  )
 
   # Debug output (default: false)
   c.debug = true
@@ -153,6 +162,36 @@ girb --help     # Show help
 | `query_model` | Execute queries on ActiveRecord models |
 | `model_info` | Get model schema information |
 
+## Custom Providers
+
+Implement your own LLM provider:
+
+```ruby
+class MyProvider < Girb::Providers::Base
+  def initialize(api_key:)
+    @api_key = api_key
+  end
+
+  def chat(messages:, system_prompt:, tools:)
+    # messages: Array of { role: :user/:assistant/:tool_call/:tool_result, content: "..." }
+    # tools: Array of { name: "...", description: "...", parameters: {...} }
+
+    # Call your LLM API here
+    response = call_my_llm(messages, system_prompt, tools)
+
+    # Return a Response object
+    Girb::Providers::Base::Response.new(
+      text: response.text,
+      function_calls: response.tool_calls&.map { |tc| { name: tc.name, args: tc.args } }
+    )
+  end
+end
+
+Girb.configure do |c|
+  c.provider = MyProvider.new(api_key: ENV['MY_API_KEY'])
+end
+```
+
 ## Examples
 
 ### Debugging Assistance
@@ -187,7 +226,7 @@ Following the pattern a=1, b=2, c=3..., z would be 26.
 
 - Ruby 3.2.0 or higher
 - IRB 1.6.0 or higher
-- Gemini API key
+- An LLM provider (e.g., girb-gemini)
 
 ## License
 
@@ -195,4 +234,4 @@ MIT License
 
 ## Contributing
 
-Bug reports and feature requests are welcome at [GitHub Issues](https://github.com/rira/girb/issues).
+Bug reports and feature requests are welcome at [GitHub Issues](https://github.com/rira100000000/girb/issues).

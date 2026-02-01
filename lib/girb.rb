@@ -2,9 +2,11 @@
 
 require_relative "girb/version"
 require_relative "girb/configuration"
+require_relative "girb/providers/base"
 require_relative "girb/exception_capture"
 require_relative "girb/context_builder"
 require_relative "girb/prompt_builder"
+require_relative "girb/conversation_history"
 require_relative "girb/tools"
 require_relative "girb/ai_client"
 

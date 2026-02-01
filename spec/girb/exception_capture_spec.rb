@@ -21,7 +21,7 @@ RSpec.describe Girb::ExceptionCapture do
       error.set_backtrace(Array.new(20) { |i| "line#{i}" })
 
       described_class.capture(error)
-
+      binding.girb
       expect(described_class.last_exception[:backtrace].length).to eq(10)
     end
   end

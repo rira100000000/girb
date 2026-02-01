@@ -17,10 +17,16 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-# 環境変数でデバッグフラグを渡す（girb.rb より先に設定が必要）
 ENV["GIRB_DEBUG"] = "1" if options[:debug]
 
 require "irb"
-require "girb"
+
+# Try to load girb-gemini for auto-configuration, fall back to girb only
+begin
+  require "girb-gemini"
+rescue LoadError
+  require "girb"
+  warn "[girb] No provider gem found. Install girb-gemini or configure a custom provider."
+end
 
 IRB.start

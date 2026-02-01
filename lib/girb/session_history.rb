@@ -4,7 +4,7 @@ module Girb
   # IRBセッション中の全入力を行番号付きで管理し、
   # メソッド定義を追跡するクラス
   class SessionHistory
-    Entry = Struct.new(:line_no, :code, :method_definition, keyword_init: true)
+    Entry = Struct.new(:line_no, :code, :method_definition, :is_ai_question, :ai_response, :ai_reasoning, keyword_init: true)
     MethodDef = Struct.new(:name, :start_line, :end_line, :code, keyword_init: true)
 
     class << self
@@ -17,8 +17,8 @@ module Girb
       end
 
       # 委譲メソッド
-      def record(line_no, code)
-        instance.record(line_no, code)
+      def record(line_no, code, is_ai_question: false)
+        instance.record(line_no, code, is_ai_question: is_ai_question)
       end
 
       def entries
@@ -48,6 +48,18 @@ module Girb
       def method_index
         instance.method_index
       end
+
+      def record_ai_response(line_no, response, reasoning = nil)
+        instance.record_ai_response(line_no, response, reasoning)
+      end
+
+      def get_ai_detail(line_no)
+        instance.get_ai_detail(line_no)
+      end
+
+      def ai_conversations
+        instance.ai_conversations
+      end
     end
 
     attr_reader :entries, :method_definitions
@@ -59,10 +71,10 @@ module Girb
     end
 
     # IRBからの入力を記録
-    def record(line_no, code)
+    def record(line_no, code, is_ai_question: false)
       code = code.to_s.chomp
 
-      entry = Entry.new(line_no: line_no, code: code, method_definition: nil)
+      entry = Entry.new(line_no: line_no, code: code, method_definition: nil, is_ai_question: is_ai_question)
 
       # メソッド定義の開始を検出
       if code.match?(/^\s*def\s+\w+/)
@@ -111,7 +123,23 @@ module Girb
 
     # 全履歴を行番号付きで取得
     def all_with_line_numbers
-      @entries.map { |e| "#{e.line_no}: #{e.code}" }
+      @entries.map do |e|
+        if e.is_ai_question
+          # AI会話は質問と回答をまとめて表示
+          response_preview = if e.ai_response
+                               truncate(e.ai_response, 100)
+                             else
+                               "(回答待ち)"
+                             end
+          "#{e.line_no}: [USER] #{e.code} => [AI] #{response_preview}"
+        else
+          "#{e.line_no}: #{e.code}"
+        end
+      end
+    end
+
+    def truncate(str, max_length)
+      str.length > max_length ? str[0, max_length] + "..." : str
     end
 
     # メソッド定義のインデックス（メソッド名: 行範囲）
@@ -122,6 +150,39 @@ module Girb
         else
           "#{m.name}: #{m.start_line}-#{m.end_line}行目"
         end
+      end
+    end
+
+    # AI質問への回答と思考の過程を記録
+    def record_ai_response(line_no, response, reasoning = nil)
+      entry = find_by_line(line_no)
+      return unless entry
+
+      entry.ai_response = response
+      entry.ai_reasoning = reasoning
+    end
+
+    # 特定の行のAI詳細情報を取得
+    def get_ai_detail(line_no)
+      entry = find_by_line(line_no)
+      return nil unless entry&.ai_response
+
+      {
+        line_no: entry.line_no,
+        question: entry.code,
+        response: entry.ai_response,
+        reasoning: entry.ai_reasoning
+      }
+    end
+
+    # AI会話の一覧（質問と回答のみ、思考の過程は含まない）
+    def ai_conversations
+      @entries.select { |e| e.is_ai_question && e.ai_response }.map do |e|
+        {
+          line_no: e.line_no,
+          question: e.code,
+          response: e.ai_response
+        }
       end
     end
 

@@ -2,8 +2,10 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in girb.gemspec
 gemspec
+
+# For development: use local girb-gemini
+gem "girb-gemini", path: "../girb-gemini"
 
 group :development, :test do
   gem "rake", "~> 13.0"

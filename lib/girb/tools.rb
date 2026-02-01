@@ -7,10 +7,11 @@ require_relative "tools/list_methods"
 require_relative "tools/evaluate_code"
 require_relative "tools/read_file"
 require_relative "tools/find_file"
+require_relative "tools/session_history_tool"
 
 module Girb
   module Tools
-    CORE_TOOLS = [InspectObject, GetSource, ListMethods, EvaluateCode, ReadFile, FindFile].freeze
+    CORE_TOOLS = [InspectObject, GetSource, ListMethods, EvaluateCode, ReadFile, FindFile, SessionHistoryTool].freeze
 
     class << self
       def available_tools

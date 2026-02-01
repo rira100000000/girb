@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "base"
+require_relative "../session_history"
 
 module Girb
   module Tools
@@ -60,9 +61,26 @@ module Girb
 
       def extract_method_info(method, target)
         location = method.source_location
+        method_name = method.name.to_s
 
         if location
           file, line = location
+
+          # IRBで定義されたメソッドの場合、SessionHistoryから取得
+          if file == "(irb)" || file&.start_with?("(irb)")
+            session_method = SessionHistory.find_method(method_name)
+            if session_method
+              return {
+                target: target,
+                file: "(irb)",
+                line: "#{session_method.start_line}-#{session_method.end_line}",
+                source: session_method.code,
+                parameters: method.parameters.map { |type, name| "#{type}: #{name}" },
+                defined_in_session: true
+              }
+            end
+          end
+
           source = read_source(file, line)
           {
             target: target,

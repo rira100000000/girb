@@ -28,10 +28,17 @@ module Girb
         return if @trace_point
 
         @trace_point = TracePoint.new(:raise) do |tp|
-          # IRB内部の例外は除外
+          # IRB内部・Ruby内部の例外は除外
           next if tp.path&.include?("irb")
+          next if tp.path&.include?("error_highlight")
+          next if tp.path&.include?("reline")
+          next if tp.path&.include?("readline")
+          next if tp.path&.include?("rdoc")
+          next if tp.path&.include?("/ri/")
           next if tp.raised_exception.is_a?(SystemExit)
           next if tp.raised_exception.is_a?(Interrupt)
+          # ErrorHighlight内部の例外を除外
+          next if tp.raised_exception.class.name&.start_with?("ErrorHighlight::")
 
           capture(tp.raised_exception, tp.binding)
         end

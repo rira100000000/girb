@@ -37,6 +37,14 @@ module Girb
       def clear!
         instance.clear!
       end
+
+      def summary
+        instance.summary
+      end
+
+      def to_normalized
+        instance.to_normalized
+      end
     end
 
     attr_reader :messages
@@ -77,7 +85,7 @@ module Girb
       @pending_tool_calls.clear
     end
 
-    # Gemini API の contents 形式に変換
+    # Gemini API の contents 形式に変換（後方互換性のため残す）
     def to_contents
       @messages.map do |msg|
         {
@@ -85,6 +93,30 @@ module Girb
           parts: [{ text: msg.content }]
         }
       end
+    end
+
+    # Provider-agnostic normalized format
+    def to_normalized
+      result = []
+
+      @messages.each do |msg|
+        role = msg.role == "model" ? :assistant : :user
+        result << { role: role, content: msg.content }
+
+        # Add tool calls and results if present
+        msg.tool_calls&.each do |tc|
+          result << { role: :tool_call, name: tc[:name], args: tc[:args] }
+          result << { role: :tool_result, name: tc[:name], result: tc[:result] }
+        end
+      end
+
+      # Add pending tool calls
+      @pending_tool_calls.each do |tc|
+        result << { role: :tool_call, name: tc[:name], args: tc[:args] }
+        result << { role: :tool_result, name: tc[:name], result: tc[:result] }
+      end
+
+      result
     end
 
     # 会話履歴のサマリー（デバッグ用）

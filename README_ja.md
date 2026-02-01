@@ -4,11 +4,13 @@ IRBセッションに組み込まれたAIアシスタント。実行中のコン
 
 ## 特徴
 
-- **コンテキスト認識**: ローカル変数、インスタンス変数、直前の例外などを自動的に把握
+- **コンテキスト認識**: ローカル変数、インスタンス変数、selfオブジェクトなどを自動的に把握
+- **例外キャプチャ**: 直前の例外を自動キャプチャ - エラー後に「なぜ失敗した？」と聞くだけでOK
 - **セッション履歴の理解**: IRBでの入力履歴を追跡し、会話の流れを理解
 - **ツール実行**: コードの実行、オブジェクトの検査、ソースコードの取得などをAIが自律的に実行
 - **多言語対応**: ユーザーの言語を検出し、同じ言語で応答
 - **カスタマイズ可能**: 独自のプロンプトを追加して、プロジェクト固有の指示を設定可能
+- **プロバイダー非依存**: Gemini、OpenAI、または独自のLLMプロバイダーを実装可能
 
 ## インストール
 
@@ -16,6 +18,7 @@ Gemfileに追加:
 
 ```ruby
 gem 'girb'
+gem 'girb-gemini'  # または他のプロバイダー
 ```
 
 そして実行:
@@ -27,39 +30,53 @@ bundle install
 または直接インストール:
 
 ```bash
-gem install girb
+gem install girb girb-gemini
 ```
 
 ## セットアップ
 
-### APIキーの設定
+### Geminiを使用する場合（推奨）
 
-Gemini APIキーを環境変数に設定:
+APIキーを環境変数に設定:
 
 ```bash
 export GEMINI_API_KEY=your-api-key
 ```
 
-または `.irbrc` で設定:
+`~/.irbrc` に追加:
 
 ```ruby
+require 'girb-gemini'
+```
+
+これだけです！`GEMINI_API_KEY`が設定されていれば、Geminiプロバイダーが自動設定されます。
+
+### 他のプロバイダーを使用する場合
+
+独自のプロバイダーを実装するか、コミュニティのプロバイダーを使用:
+
+```ruby
+require 'girb'
+
 Girb.configure do |c|
-  c.gemini_api_key = 'your-api-key'
+  c.provider = MyCustomProvider.new(api_key: "...")
 end
 ```
 
+実装の詳細は[カスタムプロバイダー](#カスタムプロバイダー)を参照してください。
+
 ## 使い方
 
-### girbコマンドで起動
+### 起動方法
 
 ```bash
 girb
 ```
 
-### 既存のIRBセッションで使用
+または `~/.irbrc` に以下を追加すると、通常の `irb` コマンドでも使えます:
 
 ```ruby
-require 'girb'
+require 'girb-gemini'
 ```
 
 ### binding.girbでデバッグ
@@ -90,29 +107,19 @@ irb(main):001> このエラーの原因は？[Ctrl+Space]
 irb(main):001> qq "このメソッドの使い方を教えて"
 ```
 
-#### 方法3: AIチャットモード
-
-```
-irb(main):001> qq-chat
-[girb] AIモード ON - 自然言語で質問できます (終了: qq-chat)
-irb(main):002> userオブジェクトの属性を確認したい
-```
-
-チャットモード中は、`>` で始めるとRubyコードとして実行されます:
-
-```
-irb(main):003> > user.attributes
-```
-
 ## 設定オプション
 
-```ruby
-Girb.configure do |c|
-  # APIキー（必須）
-  c.gemini_api_key = ENV['GEMINI_API_KEY']
+`~/.irbrc` に追加:
 
-  # 使用するモデル（デフォルト: gemini-2.5-flash）
-  c.model = 'gemini-2.5-flash'
+```ruby
+require 'girb-gemini'
+
+Girb.configure do |c|
+  # プロバイダー設定（girb-geminiは自動設定されますが、カスタマイズ可能）
+  c.provider = Girb::Providers::Gemini.new(
+    api_key: ENV['GEMINI_API_KEY'],
+    model: 'gemini-2.5-flash'
+  )
 
   # デバッグ出力（デフォルト: false）
   c.debug = true
@@ -151,6 +158,36 @@ girb --help     # ヘルプを表示
 | `query_model` | ActiveRecordモデルへのクエリ実行 |
 | `model_info` | モデルのスキーマ情報を取得 |
 
+## カスタムプロバイダー
+
+独自のLLMプロバイダーを実装:
+
+```ruby
+class MyProvider < Girb::Providers::Base
+  def initialize(api_key:)
+    @api_key = api_key
+  end
+
+  def chat(messages:, system_prompt:, tools:)
+    # messages: { role: :user/:assistant/:tool_call/:tool_result, content: "..." } の配列
+    # tools: { name: "...", description: "...", parameters: {...} } の配列
+
+    # LLM APIを呼び出す
+    response = call_my_llm(messages, system_prompt, tools)
+
+    # Responseオブジェクトを返す
+    Girb::Providers::Base::Response.new(
+      text: response.text,
+      function_calls: response.tool_calls&.map { |tc| { name: tc.name, args: tc.args } }
+    )
+  end
+end
+
+Girb.configure do |c|
+  c.provider = MyProvider.new(api_key: ENV['MY_API_KEY'])
+end
+```
+
 ## 使用例
 
 ### デバッグ支援
@@ -185,7 +222,7 @@ irb(main):003> c = 3以降も続けるとzはいくつ？[Ctrl+Space]
 
 - Ruby 3.2.0以上
 - IRB 1.6.0以上
-- Gemini APIキー
+- LLMプロバイダー（例: girb-gemini）
 
 ## ライセンス
 
@@ -193,4 +230,4 @@ MIT License
 
 ## 貢献
 
-バグ報告や機能リクエストは [GitHub Issues](https://github.com/rira/girb/issues) へお願いします。
+バグ報告や機能リクエストは [GitHub Issues](https://github.com/rira100000000/girb/issues) へお願いします。

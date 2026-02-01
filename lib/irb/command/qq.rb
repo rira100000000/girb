@@ -25,6 +25,10 @@ module IRB
 
         current_binding = irb_context.workspace.binding
 
+        # AI質問を履歴に記録
+        line_no = irb_context.line_no rescue 0
+        Girb::SessionHistory.record(line_no, question, is_ai_question: true)
+
         context = Girb::ContextBuilder.new(
           current_binding,
           irb_context
@@ -37,7 +41,7 @@ module IRB
         end
 
         client = Girb::AiClient.new
-        client.ask(question, context, binding: current_binding)
+        client.ask(question, context, binding: current_binding, line_no: line_no)
       rescue Girb::Error => e
         puts "[girb] Error: #{e.message}"
       rescue StandardError => e

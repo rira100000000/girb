@@ -30,6 +30,27 @@ require "girb/context_builder"
 require "girb/prompt_builder"
 require "girb/tools"
 
+# binding.girb support for debugging in tests
+class Binding
+  def girb
+    # Disable WebMock to allow real API calls during debugging
+    WebMock.allow_net_connect! if defined?(WebMock)
+
+    require "irb"
+    require "girb"
+    Girb.setup!
+
+    IRB.setup(source_location[0], argv: [])
+    workspace = IRB::WorkSpace.new(self)
+    irb = IRB::Irb.new(workspace)
+    IRB.conf[:MAIN_CONTEXT] = irb.context
+    irb.run(IRB.conf)
+  ensure
+    # Re-enable WebMock after debugging
+    WebMock.disable_net_connect! if defined?(WebMock)
+  end
+end
+
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"

@@ -37,8 +37,12 @@ RSpec.describe Girb::ContextBuilder do
       expect(subject[:last_value]).to be_nil
     end
 
-    it "includes history array" do
-      expect(subject[:history]).to be_an(Array)
+    it "includes session_history array" do
+      expect(subject[:session_history]).to be_an(Array)
+    end
+
+    it "includes method_definitions array" do
+      expect(subject[:method_definitions]).to be_an(Array)
     end
   end
 

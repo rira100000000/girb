@@ -5,13 +5,14 @@ require_relative "lib/girb/version"
 Gem::Specification.new do |spec|
   spec.name = "girb"
   spec.version = Girb::VERSION
-  spec.authors = ["Rira"]
-  spec.email = ["rira@example.com"]
+  spec.authors = ["rira100000000"]
+  spec.email = ["101010hayakawa@gmail.com"]
 
   spec.summary = "AI-powered IRB assistant"
   spec.description = "Ask questions in IRB and get AI-powered answers based on your runtime context. " \
-                     "Access local variables, exception info, and Rails model data while debugging."
-  spec.homepage = "https://github.com/rira/girb"
+                     "Access local variables, exception info, and Rails model data while debugging. " \
+                     "Requires an LLM provider gem (e.g., girb-gemini) or custom provider implementation."
+  spec.homepage = "https://github.com/rira100000000/girb"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
@@ -19,10 +20,10 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
-  # Specify which files should be added to the gem when it is released.
+  gemspec_file = File.expand_path(__FILE__)
   spec.files = Dir.chdir(__dir__) do
     `git ls-files -z`.split("\x0").reject do |f|
-      (File.expand_path(f) == __FILE__) ||
+      (File.expand_path(f) == gemspec_file) ||
         f.start_with?(*%w[bin/ test/ spec/ features/ .git .github appveyor Gemfile])
     end
   end
@@ -31,7 +32,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "ruby-gemini-api", "~> 1.0"
   spec.add_dependency "irb", ">= 1.6.0"
 
   # Development dependencies

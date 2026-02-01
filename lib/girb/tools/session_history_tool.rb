@@ -12,7 +12,7 @@ module Girb
         end
 
         def description
-          "Get IRB session history. Can retrieve specific lines, line ranges, method definitions, or full history."
+          "Get IRB session history. Can retrieve specific lines, line ranges, method definitions, AI conversation details, or full history."
         end
 
         def parameters
@@ -21,8 +21,8 @@ module Girb
             properties: {
               action: {
                 type: "string",
-                enum: %w[get_line get_range get_method list_methods full_history],
-                description: "Action to perform: get_line (single line), get_range (line range), get_method (method source), list_methods (list defined methods), full_history (all history)"
+                enum: %w[get_line get_range get_method list_methods full_history list_ai_conversations get_ai_detail],
+                description: "Action to perform: get_line (single line), get_range (line range), get_method (method source), list_methods (list defined methods), full_history (all history), list_ai_conversations (list AI Q&A), get_ai_detail (get AI response with reasoning)"
               },
               line: {
                 type: "integer",
@@ -58,6 +58,10 @@ module Girb
           list_defined_methods
         when "full_history"
           get_full_history
+        when "list_ai_conversations"
+          list_ai_conversations
+        when "get_ai_detail"
+          get_ai_detail(line)
         else
           { error: "Unknown action: #{action}" }
         end
@@ -138,6 +142,40 @@ module Girb
           }
         else
           { message: "No history in this session" }
+        end
+      end
+
+      def list_ai_conversations
+        conversations = SessionHistory.ai_conversations
+        if conversations.any?
+          {
+            count: conversations.size,
+            conversations: conversations.map do |c|
+              {
+                line: c[:line_no],
+                question: c[:question],
+                response_preview: c[:response][0, 200] + (c[:response].length > 200 ? "..." : "")
+              }
+            end
+          }
+        else
+          { message: "No AI conversations in this session" }
+        end
+      end
+
+      def get_ai_detail(line)
+        return { error: "line parameter is required" } unless line
+
+        detail = SessionHistory.get_ai_detail(line)
+        if detail
+          {
+            line: detail[:line_no],
+            question: detail[:question],
+            response: detail[:response],
+            reasoning: detail[:reasoning]
+          }
+        else
+          { error: "No AI conversation found at line #{line}" }
         end
       end
     end

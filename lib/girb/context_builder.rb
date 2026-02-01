@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "session_history"
+
 module Girb
   class ContextBuilder
     MAX_INSPECT_LENGTH = 500
@@ -19,7 +21,8 @@ module Girb
         self_info: capture_self,
         last_value: capture_last_value,
         last_exception: ExceptionCapture.last_exception,
-        history: recent_history
+        session_history: session_history_with_line_numbers,
+        method_definitions: session_method_definitions
       }
     end
 
@@ -116,14 +119,14 @@ module Girb
       }
     end
 
-    def recent_history
-      if defined?(Reline::HISTORY) && Reline::HISTORY.respond_to?(:to_a)
-        Reline::HISTORY.to_a.last(5)
-      elsif defined?(Readline::HISTORY) && Readline::HISTORY.respond_to?(:to_a)
-        Readline::HISTORY.to_a.last(5)
-      else
-        []
-      end
+    def session_history_with_line_numbers
+      SessionHistory.all_with_line_numbers
+    rescue StandardError
+      []
+    end
+
+    def session_method_definitions
+      SessionHistory.method_index
     rescue StandardError
       []
     end
