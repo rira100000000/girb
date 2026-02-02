@@ -12,11 +12,7 @@ An AI assistant embedded in your IRB session. It understands your runtime contex
 - **Tool Execution**: AI autonomously executes code, inspects objects, and retrieves source code
 - **Multi-language Support**: Detects user's language and responds in the same language
 - **Customizable**: Add custom prompts for project-specific instructions
-- **Provider Agnostic**: Use Gemini, OpenAI, or implement your own LLM provider
-
-## Available Providers
-
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+- **Provider Agnostic**: Use any LLM provider or implement your own
 
 ## Installation
 
@@ -24,7 +20,7 @@ Add to your Gemfile:
 
 ```ruby
 gem 'girb'
-gem 'girb-gemini'  # or other provider
+gem 'girb-ruby_llm'  # or girb-gemini
 ```
 
 Then run:
@@ -36,40 +32,68 @@ bundle install
 Or install directly:
 
 ```bash
-gem install girb girb-gemini
+gem install girb girb-ruby_llm
 ```
+
+Set the provider via environment variable:
+
+```bash
+export GIRB_PROVIDER=girb-ruby_llm
+```
+
+## Providers
+
+Currently available providers:
+
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - Multiple providers via RubyLLM (OpenAI, Anthropic, Gemini, Ollama, etc.)
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+
+You can also [create your own provider](#custom-providers).
 
 ## Setup
 
-### Using Gemini (Recommended)
+### Using girb-ruby_llm (Recommended)
 
-Set your API key as an environment variable:
+girb-ruby_llm supports multiple LLM providers through RubyLLM.
 
 ```bash
-export GEMINI_API_KEY=your-api-key
+gem install girb girb-ruby_llm
+```
+
+Add to your `~/.irbrc`:
+
+```ruby
+require 'girb-ruby_llm'
+
+RubyLLM.configure do |config|
+  config.gemini_api_key = 'your-api-key'
+end
+
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+```
+
+See [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm) for more options (OpenAI, Anthropic, Ollama, etc.).
+
+### Using girb-gemini
+
+```bash
+gem install girb girb-gemini
 ```
 
 Add to your `~/.irbrc`:
 
 ```ruby
 require 'girb-gemini'
-```
-
-That's it! The Gemini provider auto-configures when `GEMINI_API_KEY` is set.
-
-### Using Other Providers
-
-Implement your own provider or use community providers:
-
-```ruby
-require 'girb'
 
 Girb.configure do |c|
-  c.provider = MyCustomProvider.new(api_key: "...")
+  c.provider = Girb::Providers::Gemini.new(
+    api_key: 'your-api-key',
+    model: 'gemini-2.5-flash'
+  )
 end
 ```
-
-See [Custom Providers](#custom-providers) for implementation details.
 
 ## Usage
 
@@ -79,13 +103,11 @@ See [Custom Providers](#custom-providers) for implementation details.
 girb
 ```
 
-Or add to your `~/.irbrc` for automatic loading:
+Or add to your `~/.irbrc` for automatic loading with regular `irb`:
 
 ```ruby
-require 'girb-gemini'
+require 'girb-ruby_llm'  # or 'girb-gemini'
 ```
-
-Then use regular `irb` command.
 
 ### Debug with binding.girb
 
@@ -120,15 +142,9 @@ irb(main):001> qq "How do I use this method?"
 Add to your `~/.irbrc`:
 
 ```ruby
-require 'girb-gemini'
+require 'girb-ruby_llm'
 
 Girb.configure do |c|
-  # Provider configuration (girb-gemini auto-configures, but you can customize)
-  c.provider = Girb::Providers::Gemini.new(
-    api_key: ENV['GEMINI_API_KEY'],
-    model: 'gemini-2.5-flash'
-  )
-
   # Debug output (default: false)
   c.debug = true
 
@@ -146,6 +162,14 @@ girb --debug    # Enable debug output
 girb -d         # Same as above
 girb --help     # Show help
 ```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `GIRB_PROVIDER` | **Required.** Provider gem to load (e.g., `girb-ruby_llm`, `girb-gemini`) |
+| `GIRB_MODEL` | Model to use (e.g., `gemini-2.5-flash`, `gpt-4o`). Required for girb-ruby_llm. |
+| `GIRB_DEBUG` | Set to `1` to enable debug output |
 
 ## Available Tools
 
@@ -196,6 +220,12 @@ Girb.configure do |c|
 end
 ```
 
+Then run with:
+
+```bash
+GIRB_PROVIDER=my_provider girb
+```
+
 ## Examples
 
 ### Debugging Assistance
@@ -230,7 +260,7 @@ Following the pattern a=1, b=2, c=3..., z would be 26.
 
 - Ruby 3.2.0 or higher
 - IRB 1.6.0 or higher
-- An LLM provider (e.g., girb-gemini)
+- An LLM provider gem (girb-ruby_llm or girb-gemini)
 
 ## License
 

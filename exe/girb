@@ -21,12 +21,18 @@ ENV["GIRB_DEBUG"] = "1" if options[:debug]
 
 require "irb"
 
-# Try to load girb-gemini for auto-configuration, fall back to girb only
-begin
-  require "girb-gemini"
-rescue LoadError
-  require "girb"
-  warn "[girb] No provider gem found. Install girb-gemini or configure a custom provider."
+# Load girb and provider
+require "girb"
+
+if ENV["GIRB_PROVIDER"]
+  begin
+    require ENV["GIRB_PROVIDER"]
+  rescue LoadError
+    warn "[girb] Failed to load provider: #{ENV["GIRB_PROVIDER"]}"
+  end
+else
+  warn "[girb] No provider specified. Set GIRB_PROVIDER environment variable."
+  warn "[girb]   Example: GIRB_PROVIDER=girb-ruby_llm girb"
 end
 
 IRB.start

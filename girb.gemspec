@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.summary = "AI-powered IRB assistant"
   spec.description = "Ask questions in IRB and get AI-powered answers based on your runtime context. " \
                      "Access local variables, exception info, and Rails model data while debugging. " \
-                     "Requires an LLM provider gem (e.g., girb-gemini) or custom provider implementation."
+                     "Requires an LLM provider gem (e.g., girb-ruby_llm) or custom provider implementation."
   spec.homepage = "https://github.com/rira100000000/girb"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"

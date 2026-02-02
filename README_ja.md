@@ -10,11 +10,7 @@ IRBセッションに組み込まれたAIアシスタント。実行中のコン
 - **ツール実行**: コードの実行、オブジェクトの検査、ソースコードの取得などをAIが自律的に実行
 - **多言語対応**: ユーザーの言語を検出し、同じ言語で応答
 - **カスタマイズ可能**: 独自のプロンプトを追加して、プロジェクト固有の指示を設定可能
-- **プロバイダー非依存**: Gemini、OpenAI、または独自のLLMプロバイダーを実装可能
-
-## 利用可能なプロバイダー
-
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+- **プロバイダー非依存**: 任意のLLMプロバイダーを使用、または独自実装が可能
 
 ## インストール
 
@@ -22,7 +18,7 @@ Gemfileに追加:
 
 ```ruby
 gem 'girb'
-gem 'girb-gemini'  # または他のプロバイダー
+gem 'girb-ruby_llm'  # または girb-gemini
 ```
 
 そして実行:
@@ -34,40 +30,68 @@ bundle install
 または直接インストール:
 
 ```bash
-gem install girb girb-gemini
+gem install girb girb-ruby_llm
 ```
+
+環境変数でプロバイダーを設定:
+
+```bash
+export GIRB_PROVIDER=girb-ruby_llm
+```
+
+## プロバイダー
+
+現在利用可能なプロバイダー:
+
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - RubyLLM経由で複数プロバイダー対応（OpenAI、Anthropic、Gemini、Ollama等）
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+
+[独自プロバイダーの作成](#カスタムプロバイダー)も可能です。
 
 ## セットアップ
 
-### Geminiを使用する場合（推奨）
+### girb-ruby_llmを使用する場合（推奨）
 
-APIキーを環境変数に設定:
+girb-ruby_llmはRubyLLMを通じて複数のLLMプロバイダーをサポートしています。
 
 ```bash
-export GEMINI_API_KEY=your-api-key
+gem install girb girb-ruby_llm
+```
+
+`~/.irbrc` に追加:
+
+```ruby
+require 'girb-ruby_llm'
+
+RubyLLM.configure do |config|
+  config.gemini_api_key = 'your-api-key'
+end
+
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+```
+
+詳細な設定（OpenAI、Anthropic、Ollama等）については [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm) を参照してください。
+
+### girb-geminiを使用する場合
+
+```bash
+gem install girb girb-gemini
 ```
 
 `~/.irbrc` に追加:
 
 ```ruby
 require 'girb-gemini'
-```
-
-これだけです！`GEMINI_API_KEY`が設定されていれば、Geminiプロバイダーが自動設定されます。
-
-### 他のプロバイダーを使用する場合
-
-独自のプロバイダーを実装するか、コミュニティのプロバイダーを使用:
-
-```ruby
-require 'girb'
 
 Girb.configure do |c|
-  c.provider = MyCustomProvider.new(api_key: "...")
+  c.provider = Girb::Providers::Gemini.new(
+    api_key: 'your-api-key',
+    model: 'gemini-2.5-flash'
+  )
 end
 ```
-
-実装の詳細は[カスタムプロバイダー](#カスタムプロバイダー)を参照してください。
 
 ## 使い方
 
@@ -80,7 +104,7 @@ girb
 または `~/.irbrc` に以下を追加すると、通常の `irb` コマンドでも使えます:
 
 ```ruby
-require 'girb-gemini'
+require 'girb-ruby_llm'  # または 'girb-gemini'
 ```
 
 ### binding.girbでデバッグ
@@ -116,15 +140,9 @@ irb(main):001> qq "このメソッドの使い方を教えて"
 `~/.irbrc` に追加:
 
 ```ruby
-require 'girb-gemini'
+require 'girb-ruby_llm'
 
 Girb.configure do |c|
-  # プロバイダー設定（girb-geminiは自動設定されますが、カスタマイズ可能）
-  c.provider = Girb::Providers::Gemini.new(
-    api_key: ENV['GEMINI_API_KEY'],
-    model: 'gemini-2.5-flash'
-  )
-
   # デバッグ出力（デフォルト: false）
   c.debug = true
 
@@ -142,6 +160,14 @@ girb --debug    # デバッグ出力を有効化
 girb -d         # 同上
 girb --help     # ヘルプを表示
 ```
+
+### 環境変数
+
+| 変数 | 説明 |
+|------|------|
+| `GIRB_PROVIDER` | **必須。** 読み込むプロバイダーgem（例: `girb-ruby_llm`、`girb-gemini`） |
+| `GIRB_MODEL` | 使用するモデル（例: `gemini-2.5-flash`、`gpt-4o`）。girb-ruby_llmでは必須。 |
+| `GIRB_DEBUG` | `1`に設定するとデバッグ出力を有効化 |
 
 ## AIが使用できるツール
 
@@ -192,6 +218,12 @@ Girb.configure do |c|
 end
 ```
 
+実行:
+
+```bash
+GIRB_PROVIDER=my_provider girb
+```
+
 ## 使用例
 
 ### デバッグ支援
@@ -226,7 +258,7 @@ irb(main):003> c = 3以降も続けるとzはいくつ？[Ctrl+Space]
 
 - Ruby 3.2.0以上
 - IRB 1.6.0以上
-- LLMプロバイダー（例: girb-gemini）
+- LLMプロバイダーgem（girb-ruby_llm または girb-gemini）
 
 ## ライセンス
 
