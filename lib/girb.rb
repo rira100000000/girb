@@ -2,6 +2,7 @@
 
 require_relative "girb/version"
 require_relative "girb/configuration"
+require_relative "girb/girbrc_loader"
 require_relative "girb/providers/base"
 require_relative "girb/exception_capture"
 require_relative "girb/context_builder"
@@ -36,6 +37,9 @@ end
 if defined?(IRB)
   Girb.setup!
 end
+
+# Rails がロードされていたら Railtie を組み込む
+require_relative "girb/railtie" if defined?(Rails::Railtie)
 
 # binding.girb サポート
 class Binding

@@ -5,28 +5,44 @@ RSpec.describe Girb::Configuration do
     it "sets default values" do
       config = described_class.new
 
-      expect(config.model).to eq("gemini-2.5-flash")
+      expect(config.provider).to be_nil
       expect(config.debug).to be false
+      expect(config.custom_prompt).to be_nil
     end
 
-    it "reads GEMINI_API_KEY from environment" do
-      allow(ENV).to receive(:[]).with("GEMINI_API_KEY").and_return("test-key")
+    it "reads GIRB_DEBUG from environment" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("GIRB_DEBUG").and_return("1")
       config = described_class.new
 
-      expect(config.gemini_api_key).to eq("test-key")
+      expect(config.debug).to be true
     end
   end
 
   describe "accessors" do
     it "allows setting configuration values" do
       config = described_class.new
-      config.gemini_api_key = "new-key"
-      config.model = "gemini-pro"
       config.debug = true
+      config.custom_prompt = "Test prompt"
 
-      expect(config.gemini_api_key).to eq("new-key")
-      expect(config.model).to eq("gemini-pro")
       expect(config.debug).to be true
+      expect(config.custom_prompt).to eq("Test prompt")
+    end
+  end
+
+  describe "#provider!" do
+    it "returns provider if set" do
+      config = described_class.new
+      mock_provider = double("provider")
+      config.provider = mock_provider
+
+      expect(config.provider!).to eq(mock_provider)
+    end
+
+    it "raises ConfigurationError if provider is not set" do
+      config = described_class.new
+
+      expect { config.provider! }.to raise_error(Girb::ConfigurationError)
     end
   end
 end
@@ -35,12 +51,12 @@ RSpec.describe Girb do
   describe ".configure" do
     it "yields configuration block" do
       Girb.configure do |config|
-        config.gemini_api_key = "block-key"
         config.debug = true
+        config.custom_prompt = "Test"
       end
 
-      expect(Girb.configuration.gemini_api_key).to eq("block-key")
       expect(Girb.configuration.debug).to be true
+      expect(Girb.configuration.custom_prompt).to eq("Test")
     end
 
     it "returns configuration" do

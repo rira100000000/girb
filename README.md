@@ -16,11 +16,14 @@ An AI assistant embedded in your IRB session. It understands your runtime contex
 
 ## Installation
 
+### For Rails Projects
+
 Add to your Gemfile:
 
 ```ruby
-gem 'girb'
-gem 'girb-ruby_llm'  # or girb-gemini
+group :development do
+  gem 'girb-ruby_llm'  # or girb-gemini
+end
 ```
 
 Then run:
@@ -29,17 +32,52 @@ Then run:
 bundle install
 ```
 
-Or install directly:
+Create a `.girbrc` file in your project root:
+
+```ruby
+# .girbrc
+require 'girb-ruby_llm'
+
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+```
+
+Now `rails console` will automatically load girb!
+
+### For Non-Rails Projects
+
+Install globally:
 
 ```bash
 gem install girb girb-ruby_llm
 ```
 
-Set the provider via environment variable:
+Create a `.girbrc` file in your project directory:
 
-```bash
-export GIRB_PROVIDER=girb-ruby_llm
+```ruby
+# .girbrc
+require 'girb-ruby_llm'
+
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
 ```
+
+Then use `girb` command instead of `irb`.
+
+## How .girbrc Works
+
+girb searches for `.girbrc` in the following order:
+
+1. Current directory, then parent directories (up to root)
+2. `~/.girbrc` as fallback
+
+This allows you to:
+
+- **Project-specific settings**: Place `.girbrc` in your project root
+- **Shared settings**: Place `.girbrc` in a parent directory (e.g., `~/work/.girbrc` for all work projects)
+- **Global default**: Place `.girbrc` in your home directory
 
 ## Providers
 
@@ -50,63 +88,20 @@ Currently available providers:
 
 You can also [create your own provider](#custom-providers).
 
-## Setup
-
-### Using girb-ruby_llm (Recommended)
-
-girb-ruby_llm supports multiple LLM providers through RubyLLM.
-
-```bash
-gem install girb girb-ruby_llm
-```
-
-Add to your `~/.irbrc`:
-
-```ruby
-require 'girb-ruby_llm'
-
-RubyLLM.configure do |config|
-  config.gemini_api_key = 'your-api-key'
-end
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
-end
-```
-
-See [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm) for more options (OpenAI, Anthropic, Ollama, etc.).
-
-### Using girb-gemini
-
-```bash
-gem install girb girb-gemini
-```
-
-Add to your `~/.irbrc`:
-
-```ruby
-require 'girb-gemini'
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::Gemini.new(
-    api_key: 'your-api-key',
-    model: 'gemini-2.5-flash'
-  )
-end
-```
-
 ## Usage
 
-### Quick Start
+### For Rails Projects
+
+```bash
+rails console
+```
+
+girb is automatically loaded via Railtie.
+
+### For Non-Rails Projects
 
 ```bash
 girb
-```
-
-Or add to your `~/.irbrc` for automatic loading with regular `irb`:
-
-```ruby
-require 'girb-ruby_llm'  # or 'girb-gemini'
 ```
 
 ### Debug with binding.girb
@@ -139,7 +134,7 @@ irb(main):001> qq "How do I use this method?"
 
 ## Configuration Options
 
-Add to your `~/.irbrc`:
+Add to your `.girbrc`:
 
 ```ruby
 require 'girb-ruby_llm'
@@ -165,10 +160,12 @@ girb --help     # Show help
 
 ### Environment Variables
 
+For `girb` command, you can also configure via environment variables (used when no `.girbrc` is found):
+
 | Variable | Description |
 |----------|-------------|
-| `GIRB_PROVIDER` | **Required.** Provider gem to load (e.g., `girb-ruby_llm`, `girb-gemini`) |
-| `GIRB_MODEL` | Model to use (e.g., `gemini-2.5-flash`, `gpt-4o`). Required for girb-ruby_llm. |
+| `GIRB_PROVIDER` | Provider gem to load (e.g., `girb-ruby_llm`, `girb-gemini`) |
+| `GIRB_MODEL` | Model to use (e.g., `gemini-2.5-flash`, `gpt-4o`) |
 | `GIRB_DEBUG` | Set to `1` to enable debug output |
 
 ## Available Tools
@@ -218,12 +215,6 @@ end
 Girb.configure do |c|
   c.provider = MyProvider.new(api_key: ENV['MY_API_KEY'])
 end
-```
-
-Then run with:
-
-```bash
-GIRB_PROVIDER=my_provider girb
 ```
 
 ## Examples

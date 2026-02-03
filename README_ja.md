@@ -14,11 +14,14 @@ IRBセッションに組み込まれたAIアシスタント。実行中のコン
 
 ## インストール
 
+### Railsプロジェクトの場合
+
 Gemfileに追加:
 
 ```ruby
-gem 'girb'
-gem 'girb-ruby_llm'  # または girb-gemini
+group :development do
+  gem 'girb-ruby_llm'  # または girb-gemini
+end
 ```
 
 そして実行:
@@ -27,17 +30,52 @@ gem 'girb-ruby_llm'  # または girb-gemini
 bundle install
 ```
 
-または直接インストール:
+プロジェクトルートに `.girbrc` ファイルを作成:
+
+```ruby
+# .girbrc
+require 'girb-ruby_llm'
+
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+```
+
+これで `rails console` が自動的にgirbを読み込みます！
+
+### 非Railsプロジェクトの場合
+
+グローバルにインストール:
 
 ```bash
 gem install girb girb-ruby_llm
 ```
 
-環境変数でプロバイダーを設定:
+プロジェクトディレクトリに `.girbrc` ファイルを作成:
 
-```bash
-export GIRB_PROVIDER=girb-ruby_llm
+```ruby
+# .girbrc
+require 'girb-ruby_llm'
+
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
 ```
+
+`irb` の代わりに `girb` コマンドを使用します。
+
+## .girbrc の仕組み
+
+girbは以下の順序で `.girbrc` を探します:
+
+1. カレントディレクトリから親ディレクトリを遡って探索（ルートまで）
+2. `~/.girbrc` にフォールバック
+
+これにより:
+
+- **プロジェクト固有の設定**: プロジェクトルートに `.girbrc` を配置
+- **共有設定**: 親ディレクトリに `.girbrc` を配置（例: `~/work/.girbrc` で仕事用プロジェクト全体に適用）
+- **グローバルデフォルト**: ホームディレクトリに `.girbrc` を配置
 
 ## プロバイダー
 
@@ -48,63 +86,20 @@ export GIRB_PROVIDER=girb-ruby_llm
 
 [独自プロバイダーの作成](#カスタムプロバイダー)も可能です。
 
-## セットアップ
-
-### girb-ruby_llmを使用する場合（推奨）
-
-girb-ruby_llmはRubyLLMを通じて複数のLLMプロバイダーをサポートしています。
-
-```bash
-gem install girb girb-ruby_llm
-```
-
-`~/.irbrc` に追加:
-
-```ruby
-require 'girb-ruby_llm'
-
-RubyLLM.configure do |config|
-  config.gemini_api_key = 'your-api-key'
-end
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
-end
-```
-
-詳細な設定（OpenAI、Anthropic、Ollama等）については [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm) を参照してください。
-
-### girb-geminiを使用する場合
-
-```bash
-gem install girb girb-gemini
-```
-
-`~/.irbrc` に追加:
-
-```ruby
-require 'girb-gemini'
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::Gemini.new(
-    api_key: 'your-api-key',
-    model: 'gemini-2.5-flash'
-  )
-end
-```
-
 ## 使い方
 
-### 起動方法
+### Railsプロジェクトの場合
+
+```bash
+rails console
+```
+
+Railtieにより自動的にgirbが読み込まれます。
+
+### 非Railsプロジェクトの場合
 
 ```bash
 girb
-```
-
-または `~/.irbrc` に以下を追加すると、通常の `irb` コマンドでも使えます:
-
-```ruby
-require 'girb-ruby_llm'  # または 'girb-gemini'
 ```
 
 ### binding.girbでデバッグ
@@ -137,7 +132,7 @@ irb(main):001> qq "このメソッドの使い方を教えて"
 
 ## 設定オプション
 
-`~/.irbrc` に追加:
+`.girbrc` に追加:
 
 ```ruby
 require 'girb-ruby_llm'
@@ -163,10 +158,12 @@ girb --help     # ヘルプを表示
 
 ### 環境変数
 
+`girb` コマンドでは、`.girbrc` が見つからない場合に環境変数で設定することもできます:
+
 | 変数 | 説明 |
 |------|------|
-| `GIRB_PROVIDER` | **必須。** 読み込むプロバイダーgem（例: `girb-ruby_llm`、`girb-gemini`） |
-| `GIRB_MODEL` | 使用するモデル（例: `gemini-2.5-flash`、`gpt-4o`）。girb-ruby_llmでは必須。 |
+| `GIRB_PROVIDER` | 読み込むプロバイダーgem（例: `girb-ruby_llm`、`girb-gemini`） |
+| `GIRB_MODEL` | 使用するモデル（例: `gemini-2.5-flash`、`gpt-4o`） |
 | `GIRB_DEBUG` | `1`に設定するとデバッグ出力を有効化 |
 
 ## AIが使用できるツール
@@ -216,12 +213,6 @@ end
 Girb.configure do |c|
   c.provider = MyProvider.new(api_key: ENV['MY_API_KEY'])
 end
-```
-
-実行:
-
-```bash
-GIRB_PROVIDER=my_provider girb
 ```
 
 ## 使用例
