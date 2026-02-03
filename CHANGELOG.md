@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+
+- `.girbrc` configuration file support with directory traversal
+- Railtie for automatic Rails console integration
+- GirbrcLoader utility for finding and loading `.girbrc` files
+
+### Changed
+
+- Recommend `.girbrc` configuration instead of `~/.irbrc`
+- `girb` command now loads `.girbrc` before falling back to environment variables
+
 ## [0.1.1] - 2026-02-03
 
 ### Changed
