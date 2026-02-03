@@ -11,7 +11,7 @@ module Girb
         end
 
         def description
-          "Get Rails project information including root path, environment, and basic configuration."
+          "Get Rails project information: current directory (Rails.root), environment, Ruby/Rails versions, database config, and list of all defined models. Use this to find project path or list models."
         end
 
         def parameters
