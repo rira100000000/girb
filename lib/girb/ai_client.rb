@@ -53,7 +53,8 @@ module Girb
         response = @provider.chat(
           messages: messages,
           system_prompt: @system_prompt,
-          tools: tools
+          tools: tools,
+          binding: @current_binding
         )
 
         if Girb.configuration.debug

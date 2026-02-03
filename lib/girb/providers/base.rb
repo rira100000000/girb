@@ -24,8 +24,9 @@ module Girb
       #   Each message has :role (:user, :assistant, :tool_call, :tool_result) and :content
       # @param system_prompt [String] System prompt
       # @param tools [Array<Hash>] Tool definitions in normalized format
+      # @param binding [Binding] Optional binding for tool execution (used by some providers)
       # @return [Response] Response object with text and/or function_calls
-      def chat(messages:, system_prompt:, tools:)
+      def chat(messages:, system_prompt:, tools:, binding: nil)
         raise NotImplementedError, "#{self.class}#chat must be implemented"
       end
 
