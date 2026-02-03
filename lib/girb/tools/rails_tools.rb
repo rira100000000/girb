@@ -4,6 +4,64 @@ require_relative "base"
 
 module Girb
   module Tools
+    class RailsProjectInfo < Base
+      class << self
+        def available?
+          defined?(Rails)
+        end
+
+        def description
+          "Get Rails project information including root path, environment, and basic configuration."
+        end
+
+        def parameters
+          {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        end
+      end
+
+      def execute(binding)
+        info = {
+          root: Rails.root.to_s,
+          environment: Rails.env,
+          ruby_version: RUBY_VERSION
+        }
+
+        # Rails version
+        info[:rails_version] = Rails.version if Rails.respond_to?(:version)
+
+        # Database info
+        if defined?(ActiveRecord::Base)
+          begin
+            config = ActiveRecord::Base.connection_db_config
+            info[:database] = {
+              adapter: config.adapter,
+              database: config.database
+            }
+          rescue StandardError
+            # DB not connected
+          end
+        end
+
+        # Defined models
+        if defined?(ActiveRecord::Base)
+          begin
+            Rails.application.eager_load! unless Rails.application.config.eager_load
+            info[:models] = ActiveRecord::Base.descendants.map(&:name).sort
+          rescue StandardError
+            # Unable to load models
+          end
+        end
+
+        info
+      rescue StandardError => e
+        { error: "#{e.class}: #{e.message}" }
+      end
+    end
+
     class RailsModelInfo < Base
       class << self
         def available?

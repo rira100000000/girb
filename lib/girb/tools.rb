@@ -18,9 +18,10 @@ module Girb
         tools = CORE_TOOLS.dup
 
         # Rails tools are loaded conditionally
-        if defined?(ActiveRecord::Base)
+        if defined?(Rails)
           require_relative "tools/rails_tools"
-          tools << RailsModelInfo
+          tools << RailsProjectInfo
+          tools << RailsModelInfo if defined?(ActiveRecord::Base)
         end
 
         tools.select { |t| !t.respond_to?(:available?) || t.available? }
