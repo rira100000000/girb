@@ -7,6 +7,7 @@
 - `.girbrc` configuration file support with directory traversal
 - Railtie for automatic Rails console integration
 - GirbrcLoader utility for finding and loading `.girbrc` files
+- `get_current_directory` tool for non-Rails environments
 
 ### Changed
 
