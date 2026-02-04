@@ -2,13 +2,13 @@
 
 require_relative "base"
 
-module Girb
+module Gcore
   module Tools
     class EvaluateCode < Base
       class << self
         def description
-          "Execute arbitrary Ruby code in the current context and return the result. " \
-          "Use this to call methods, create objects, test conditions, or perform any Ruby operation."
+          "Evaluate Ruby code in the current context. " \
+          "Use this to test hypotheses, inspect values, or run debugging commands."
         end
 
         def parameters
@@ -17,7 +17,7 @@ module Girb
             properties: {
               code: {
                 type: "string",
-                description: "Ruby code to execute (e.g., 'user.valid?', 'Order.where(status: :pending).count', 'arr.map { |x| x * 2 }')"
+                description: "The Ruby code to evaluate"
               }
             },
             required: ["code"]
@@ -28,15 +28,13 @@ module Girb
       def execute(binding, code:)
         result = binding.eval(code)
         {
-          code: code,
           result: safe_inspect(result),
-          result_class: result.class.name,
-          success: true
+          result_class: result.class.name
         }
       rescue SyntaxError => e
-        { code: code, error: "Syntax error: #{e.message}", success: false }
+        { error: "SyntaxError: #{e.message}" }
       rescue StandardError => e
-        { code: code, error: "#{e.class}: #{e.message}", backtrace: e.backtrace&.first(5), success: false }
+        { error: "#{e.class}: #{e.message}", backtrace: e.backtrace&.first(5) }
       end
     end
   end

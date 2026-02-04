@@ -2,7 +2,7 @@
 
 require_relative "base"
 
-module Girb
+module Gcore
   module Tools
     class ListMethods < Base
       class << self
@@ -20,7 +20,7 @@ module Girb
               },
               pattern: {
                 type: "string",
-                description: "Optional regex pattern to filter method names (e.g., 'valid', 'save')"
+                description: "Optional regex pattern to filter method names"
               },
               include_inherited: {
                 type: "boolean",
@@ -41,20 +41,14 @@ module Girb
                       class_methods: obj.methods(!include_inherited)
                     }
                   else
-                    {
-                      methods: obj.methods(!include_inherited)
-                    }
+                    { methods: obj.methods(!include_inherited) }
                   end
 
-        # パターンでフィルタ
         if pattern && !pattern.empty?
           regex = Regexp.new(pattern, Regexp::IGNORECASE)
-          methods = methods.transform_values do |list|
-            list.select { |m| m.to_s.match?(regex) }
-          end
+          methods = methods.transform_values { |list| list.select { |m| m.to_s.match?(regex) } }
         end
 
-        # ソートして返す
         methods.transform_values(&:sort)
       rescue RegexpError => e
         { error: "Invalid pattern: #{e.message}" }

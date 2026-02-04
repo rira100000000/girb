@@ -1,15 +1,16 @@
 # frozen_string_literal: true
 
+# Load gcore (shared core library)
+require_relative "gcore"
+
+# Load girb-specific components
 require_relative "girb/version"
-require_relative "girb/configuration"
 require_relative "girb/girbrc_loader"
-require_relative "girb/providers/base"
 require_relative "girb/exception_capture"
+require_relative "girb/session_history"
 require_relative "girb/context_builder"
 require_relative "girb/prompt_builder"
-require_relative "girb/conversation_history"
 require_relative "girb/tools"
-require_relative "girb/ai_client"
 
 module Girb
   class Error < StandardError; end
@@ -17,20 +18,25 @@ module Girb
   class ApiError < Error; end
 
   class << self
-    attr_accessor :configuration
+    # Delegate configuration to Gcore
+    def configuration
+      Gcore.configuration
+    end
 
-    def configure
-      self.configuration ||= Configuration.new
-      yield(configuration) if block_given?
-      configuration
+    def configure(&block)
+      Gcore.configure(&block)
     end
 
     def setup!
-      configure unless configuration
+      configure unless Gcore.configuration
       require_relative "girb/irb_integration"
       IrbIntegration.setup
     end
   end
+
+  # Use Gcore's AI client and conversation history
+  AiClient = Gcore::AiClient
+  ConversationHistory = Gcore::ConversationHistory
 end
 
 # IRB がロードされていたら自動で組み込む

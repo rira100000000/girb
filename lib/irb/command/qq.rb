@@ -15,14 +15,6 @@ module IRB
           return
         end
 
-        unless Girb.configuration&.gemini_api_key
-          puts "[girb] Error: GEMINI_API_KEY not set"
-          puts "[girb] Run: export GEMINI_API_KEY=your-key"
-          puts "[girb] Or configure in your .irbrc:"
-          puts "[girb]   Girb.configure { |c| c.gemini_api_key = 'your-key' }"
-          return
-        end
-
         current_binding = irb_context.workspace.binding
 
         # AI質問を履歴に記録
@@ -34,19 +26,22 @@ module IRB
           irb_context
         ).build
 
-        if Girb.configuration.debug
+        if Gcore.configuration.debug
           puts "[girb] Context collected:"
           require "yaml"
           puts context.to_yaml
         end
 
-        client = Girb::AiClient.new
-        client.ask(question, context, binding: current_binding, line_no: line_no)
-      rescue Girb::Error => e
-        puts "[girb] Error: #{e.message}"
+        client = Gcore::AiClient.new(
+          prompt_builder_class: Girb::PromptBuilder,
+          tools_module: Girb::Tools
+        )
+        client.ask(question, context, binding: current_binding)
+      rescue Gcore::ConfigurationError => e
+        puts "[girb] #{e.message}"
       rescue StandardError => e
         puts "[girb] Error: #{e.message}"
-        puts e.backtrace.first(5).join("\n") if Girb.configuration&.debug
+        puts e.backtrace.first(5).join("\n") if Gcore.configuration&.debug
       end
     end
   end

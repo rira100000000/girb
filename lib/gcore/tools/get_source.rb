@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
 require_relative "base"
-require_relative "../session_history"
 
-module Girb
+module Gcore
   module Tools
     class GetSource < Base
       MAX_SOURCE_LINES = 50
 
       class << self
         def description
-          "Get the source code of a method or class definition. Use 'Class#method' for instance methods, 'Class.method' for class methods."
+          "Get the source code of a method or class. " \
+          "Use 'Class#method' for instance methods, 'Class.method' for class methods."
         end
 
         def parameters
@@ -47,7 +47,6 @@ module Girb
         class_name, method_name = target.split("#", 2)
         klass = binding.eval(class_name)
         method = klass.instance_method(method_name.to_sym)
-
         extract_method_info(method, target)
       end
 
@@ -55,32 +54,14 @@ module Girb
         class_name, method_name = target.split(".", 2)
         klass = binding.eval(class_name)
         method = klass.method(method_name.to_sym)
-
         extract_method_info(method, target)
       end
 
       def extract_method_info(method, target)
         location = method.source_location
-        method_name = method.name.to_s
 
         if location
           file, line = location
-
-          # IRBで定義されたメソッドの場合、SessionHistoryから取得
-          if file == "(irb)" || file&.start_with?("(irb)")
-            session_method = SessionHistory.find_method(method_name)
-            if session_method
-              return {
-                target: target,
-                file: "(irb)",
-                line: "#{session_method.start_line}-#{session_method.end_line}",
-                source: session_method.code,
-                parameters: method.parameters.map { |type, name| "#{type}: #{name}" },
-                defined_in_session: true
-              }
-            end
-          end
-
           source = read_source(file, line)
           {
             target: target,
@@ -122,20 +103,16 @@ module Girb
       end
 
       def find_method_end(lines, start_index)
-        # 簡易的なインデント解析でメソッド終端を探す
         return [start_index + MAX_SOURCE_LINES, lines.length - 1].min if start_index >= lines.length
 
         base_indent = lines[start_index][/^\s*/].length
-        end_keywords = %w[end]
 
         (start_index + 1).upto([start_index + MAX_SOURCE_LINES, lines.length - 1].min) do |i|
           line = lines[i]
           next if line.strip.empty? || line.strip.start_with?("#")
 
           current_indent = line[/^\s*/].length
-          if current_indent <= base_indent && end_keywords.any? { |kw| line.strip.start_with?(kw) }
-            return i
-          end
+          return i if current_indent <= base_indent && line.strip.start_with?("end")
         end
 
         [start_index + MAX_SOURCE_LINES, lines.length - 1].min

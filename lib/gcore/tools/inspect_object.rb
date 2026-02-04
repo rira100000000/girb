@@ -2,12 +2,12 @@
 
 require_relative "base"
 
-module Girb
+module Gcore
   module Tools
     class InspectObject < Base
       class << self
         def description
-          "Inspect a variable or expression in the current context. Returns detailed information about the object."
+          "Inspect an object in detail. Shows class, instance variables, and available methods."
         end
 
         def parameters
@@ -16,7 +16,7 @@ module Girb
             properties: {
               expression: {
                 type: "string",
-                description: "The variable name or Ruby expression to inspect (e.g., 'user', 'user.errors', '@items.first')"
+                description: "The variable name or expression to inspect"
               }
             },
             required: ["expression"]
@@ -25,16 +25,15 @@ module Girb
       end
 
       def execute(binding, expression:)
-        result = binding.eval(expression)
+        obj = binding.eval(expression)
+
         {
-          expression: expression,
-          class: result.class.name,
-          value: safe_inspect(result),
-          instance_variables: extract_instance_variables(result),
-          methods_count: result.methods.count
+          class: obj.class.name,
+          inspect: safe_inspect(obj),
+          instance_variables: extract_instance_variables(obj),
+          methods: obj.methods(false).sort.first(30),
+          ancestors: obj.class.ancestors.first(10).map(&:to_s)
         }
-      rescue SyntaxError => e
-        { error: "Syntax error: #{e.message}" }
       rescue StandardError => e
         { error: "#{e.class}: #{e.message}" }
       end

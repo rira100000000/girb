@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 module Girb
-  class PromptBuilder
+  # IRB-specific prompt builder with specialized system prompt and context formatting
+  class PromptBuilder < Gcore::PromptBuilder
     SYSTEM_PROMPT = <<~PROMPT
       You are girb, an AI assistant embedded in a Ruby developer's IRB session.
 
@@ -56,34 +57,7 @@ module Girb
       Actively use the evaluate_code tool especially for verifying hypotheses and calculations.
     PROMPT
 
-    def initialize(question, context)
-      @question = question
-      @context = context
-    end
-
-    # Legacy single prompt format (for backward compatibility)
-    def build
-      <<~PROMPT
-        #{system_prompt}
-
-        #{build_context_section}
-
-        ## Question
-        #{@question}
-      PROMPT
-    end
-
-    # System prompt (shared across conversation)
-    def system_prompt
-      custom = Girb.configuration&.custom_prompt
-      if custom && !custom.empty?
-        "#{SYSTEM_PROMPT}\n\n## User-Defined Instructions\n#{custom}"
-      else
-        SYSTEM_PROMPT
-      end
-    end
-
-    # User message (context + question)
+    # User message with IRB-specific context formatting
     def user_message
       <<~MSG
         ## Current IRB Context
@@ -94,7 +68,7 @@ module Girb
       MSG
     end
 
-    private
+    protected
 
     def build_context_section
       <<~CONTEXT
@@ -103,7 +77,7 @@ module Girb
         #{format_session_history}
 
         ### Current Local Variables
-        #{format_locals}
+        #{format_hash(@context[:local_variables])}
 
         ### Last Evaluation Result
         #{@context[:last_value] || "(none)"}
@@ -116,32 +90,7 @@ module Girb
       CONTEXT
     end
 
-    def format_source_location
-      loc = @context[:source_location]
-      return "(unknown)" unless loc
-
-      "File: #{loc[:file]}\nLine: #{loc[:line]}"
-    end
-
-    def format_locals
-      return "(none)" if @context[:local_variables].nil? || @context[:local_variables].empty?
-
-      @context[:local_variables].map do |name, value|
-        "- #{name}: #{value}"
-      end.join("\n")
-    end
-
-    def format_self_info
-      info = @context[:self_info]
-      return "(unknown)" unless info
-
-      lines = ["Class: #{info[:class]}"]
-      lines << "inspect: #{info[:inspect]}"
-      if info[:methods]&.any?
-        lines << "Defined methods: #{info[:methods].join(', ')}"
-      end
-      lines.join("\n")
-    end
+    private
 
     def format_exception
       exc = @context[:last_exception]

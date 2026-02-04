@@ -1,22 +1,18 @@
 # frozen_string_literal: true
 
+# Girb-specific tools (extending gcore tools)
 require_relative "tools/base"
-require_relative "tools/inspect_object"
-require_relative "tools/get_source"
-require_relative "tools/list_methods"
-require_relative "tools/evaluate_code"
-require_relative "tools/read_file"
-require_relative "tools/find_file"
 require_relative "tools/session_history_tool"
-require_relative "tools/environment_tools"
 
 module Girb
   module Tools
-    CORE_TOOLS = [InspectObject, GetSource, ListMethods, EvaluateCode, ReadFile, FindFile, SessionHistoryTool, GetCurrentDirectory].freeze
-
     class << self
       def available_tools
-        tools = CORE_TOOLS.dup
+        # Start with gcore's base tools
+        tools = Gcore::Tools.all_tools.select(&:available?).dup
+
+        # Add girb-specific tools
+        tools << SessionHistoryTool
 
         # Rails tools are loaded conditionally
         if defined?(Rails)
@@ -32,8 +28,13 @@ module Girb
         available_tools.find { |t| t.tool_name == name }
       end
 
+      def to_definitions
+        available_tools.map(&:to_tool_definition)
+      end
+
+      # Legacy method name for compatibility
       def to_gemini_tools
-        available_tools.map(&:to_gemini_tool)
+        to_definitions
       end
     end
   end

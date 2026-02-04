@@ -5,7 +5,6 @@ require "irb/command"
 require_relative "exception_capture"
 require_relative "context_builder"
 require_relative "session_history"
-require_relative "ai_client"
 
 module Girb
   # AI送信フラグ（スレッドローカル）
@@ -77,9 +76,14 @@ module Girb
     private
 
     def ask_ai(question, line_no)
-      context = ContextBuilder.new(workspace.binding, self).build
-      client = AiClient.new
-      client.ask(question, context, binding: workspace.binding, line_no: line_no)
+      context = Girb::ContextBuilder.new(workspace.binding, self).build
+      client = Gcore::AiClient.new(
+        prompt_builder_class: Girb::PromptBuilder,
+        tools_module: Girb::Tools
+      )
+      client.ask(question, context, binding: workspace.binding) do |response|
+        Girb::SessionHistory.record_ai_response(line_no, response)
+      end
     rescue StandardError => e
       puts "[girb] Error: #{e.message}"
     end
