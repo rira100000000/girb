@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: gdebug [options] [script]"
+
+  opts.on("-d", "--debug", "Enable debug output") do
+    ENV["GDEBUG_DEBUG"] = "1"
+  end
+
+  opts.on("-h", "--help", "Show this help") do
+    puts opts
+    exit
+  end
+
+  opts.on("-v", "--version", "Show version") do
+    require_relative "../lib/gdebug/version"
+    puts "gdebug #{Gdebug::VERSION}"
+    exit
+  end
+end.parse!
+
+# Load gdebug
+require_relative "../lib/gdebug"
+
+# If a script is provided, run it with rdbg
+if ARGV.any?
+  script = ARGV.shift
+  exec("rdbg", "-r", "gdebug", script, *ARGV)
+else
+  # Interactive mode - start rdbg with gdebug loaded
+  puts "gdebug - AI-powered debugging assistant"
+  puts "Use 'rdbg -r gdebug <script>' to debug a script with AI assistance"
+  puts ""
+  puts "Or add to your script:"
+  puts "  require 'gdebug'"
+  puts "  debugger"
+  puts ""
+  puts "Then use 'ai <question>' at any breakpoint"
+end
