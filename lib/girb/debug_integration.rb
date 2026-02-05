@@ -8,9 +8,10 @@ require_relative "debug_session_history"
 module Girb
   module DebugIntegration
     @ai_triggered = false
+    @interrupted = false
 
     class << self
-      attr_accessor :ai_triggered, :auto_continue
+      attr_accessor :ai_triggered, :auto_continue, :interrupted
 
       def pending_debug_commands
         @pending_debug_commands ||= []
@@ -28,6 +29,18 @@ module Girb
 
       def auto_continue?
         @auto_continue
+      end
+
+      def interrupted?
+        @interrupted
+      end
+
+      def interrupt!
+        @interrupted = true
+      end
+
+      def clear_interrupt!
+        @interrupted = false
       end
 
       def setup
@@ -72,9 +85,25 @@ module Girb
           @girb_auto_continue_count ||= 0
           @girb_auto_continue_count += 1
 
+          # Set up interrupt handler on first iteration
+          if @girb_auto_continue_count == 1
+            setup_interrupt_handler
+          end
+
+          # Check for interrupt (Ctrl+C)
+          if Girb::DebugIntegration.interrupted?
+            Girb::DebugIntegration.auto_continue = false
+            Girb::DebugIntegration.clear_interrupt!
+            @girb_auto_continue_count = 0
+            restore_interrupt_handler
+            handle_ai_interrupted
+            return :retry
+          end
+
           if @girb_auto_continue_count > MAX_AUTO_CONTINUE
             Girb::DebugIntegration.auto_continue = false
             @girb_auto_continue_count = 0
+            restore_interrupt_handler
             handle_ai_turn_limit_reached
             return :retry
           end
@@ -89,10 +118,12 @@ module Girb
             end
           else
             Girb::DebugIntegration.auto_continue = false
+            restore_interrupt_handler
           end
           return :retry
         else
           @girb_auto_continue_count = 0
+          Girb::DebugIntegration.clear_interrupt!
         end
 
         super
@@ -204,6 +235,36 @@ module Girb
       rescue StandardError => e
         puts "[girb] Auto-continue limit reached (#{MAX_AUTO_CONTINUE})"
         puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
+      end
+
+      def handle_ai_interrupted
+        puts "\n[girb] Interrupted by user (Ctrl+C)"
+        current_binding = @tc&.current_frame&.eval_binding
+        return unless current_binding
+
+        context = Girb::DebugContextBuilder.new(current_binding).build
+        client = Girb::AiClient.new
+        interrupt_message = "(System: User interrupted with Ctrl+C. " \
+                            "Briefly summarize your progress so far. " \
+                            "Tell the user where you stopped and how to continue if needed.)"
+        client.ask(interrupt_message, context, binding: current_binding, debug_mode: true)
+      rescue StandardError => e
+        puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
+      end
+
+      def setup_interrupt_handler
+        @original_int_handler = trap("INT") do
+          Girb::DebugIntegration.interrupt!
+        end
+      end
+
+      def restore_interrupt_handler
+        if @original_int_handler
+          trap("INT", @original_int_handler)
+          @original_int_handler = nil
+        else
+          trap("INT", "DEFAULT")
+        end
       end
     end
   end
