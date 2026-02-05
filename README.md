@@ -10,6 +10,8 @@ An AI assistant embedded in your IRB session. It understands your runtime contex
 - **Exception Capture**: Automatically captures recent exceptions - just ask "why did this fail?" after an error
 - **Session History Understanding**: Tracks IRB input history and understands conversation flow
 - **Tool Execution**: AI autonomously executes code, inspects objects, and retrieves source code
+- **Autonomous Investigation**: AI can loop through investigate-execute-analyze cycles using `continue_analysis`
+- **Debug Gem Integration**: Use with Ruby's debug gem for step-through debugging with AI assistance
 - **Multi-language Support**: Detects user's language and responds in the same language
 - **Customizable**: Add custom prompts for project-specific instructions
 - **Provider Agnostic**: Use any LLM provider or implement your own
@@ -116,6 +118,34 @@ def problematic_method
 end
 ```
 
+### Debug with debug gem (rdbg)
+
+For step-through debugging with AI assistance, add `require "girb"` to your script:
+
+```ruby
+require "girb"
+
+def problematic_method
+  result = some_calculation
+  result
+end
+
+problematic_method
+```
+
+Then run with rdbg:
+
+```bash
+rdbg your_script.rb
+```
+
+In the debugger, use:
+- `ai <question>` - Ask AI a question
+- `Ctrl+Space` - Send current input to AI
+- Natural language (non-ASCII) input is automatically routed to AI
+
+The AI can execute debugger commands like `step`, `next`, `continue`, and set breakpoints for you.
+
 ### How to Ask AI
 
 #### Method 1: Ctrl+Space
@@ -179,6 +209,7 @@ For `girb` command, you can also configure via environment variables (used when 
 | `find_file` | Search for files in the project |
 | `read_file` | Read file contents |
 | `session_history` | Get IRB session history |
+| `continue_analysis` | Request context refresh for autonomous investigation |
 
 ### Additional Tools in Rails Environment
 
@@ -186,6 +217,12 @@ For `girb` command, you can also configure via environment variables (used when 
 |------|-------------|
 | `query_model` | Execute queries on ActiveRecord models |
 | `model_info` | Get model schema information |
+
+### Additional Tools in Debug Mode (rdbg)
+
+| Tool | Description |
+|------|-------------|
+| `run_debug_command` | Execute debugger commands (step, next, continue, break, etc.) |
 
 ## Custom Providers
 

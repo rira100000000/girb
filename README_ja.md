@@ -8,6 +8,8 @@ IRBセッションに組み込まれたAIアシスタント。実行中のコン
 - **例外キャプチャ**: 直前の例外を自動キャプチャ - エラー後に「なぜ失敗した？」と聞くだけでOK
 - **セッション履歴の理解**: IRBでの入力履歴を追跡し、会話の流れを理解
 - **ツール実行**: コードの実行、オブジェクトの検査、ソースコードの取得などをAIが自律的に実行
+- **自律的な調査**: `continue_analysis`を使って、調査→実行→分析のサイクルをAIが自律的にループ可能
+- **debug gem統合**: Rubyのdebug gemと連携し、AIアシスタント付きのステップ実行デバッグが可能
 - **多言語対応**: ユーザーの言語を検出し、同じ言語で応答
 - **カスタマイズ可能**: 独自のプロンプトを追加して、プロジェクト固有の指示を設定可能
 - **プロバイダー非依存**: 任意のLLMプロバイダーを使用、または独自実装が可能
@@ -114,6 +116,34 @@ def problematic_method
 end
 ```
 
+### debug gem (rdbg) でデバッグ
+
+AIアシスタント付きのステップ実行デバッグを行うには、スクリプトに `require "girb"` を追加:
+
+```ruby
+require "girb"
+
+def problematic_method
+  result = some_calculation
+  result
+end
+
+problematic_method
+```
+
+rdbgで起動:
+
+```bash
+rdbg your_script.rb
+```
+
+デバッガ内では以下の方法でAIに質問できます:
+- `ai <質問>` - AIに質問
+- `Ctrl+Space` - 入力内容をAIに送信
+- 日本語（非ASCII文字）の入力は自動的にAIにルーティング
+
+AIは `step`、`next`、`continue` などのデバッガコマンドを実行したり、ブレークポイントを設定することもできます。
+
 ### AIへの質問方法
 
 #### 方法1: Ctrl+Space
@@ -177,6 +207,7 @@ girb --help     # ヘルプを表示
 | `find_file` | プロジェクト内のファイルを検索 |
 | `read_file` | ファイルの内容を読み取り |
 | `session_history` | IRBセッションの履歴を取得 |
+| `continue_analysis` | 自律調査のためのコンテキスト更新をリクエスト |
 
 ### Rails環境での追加ツール
 
@@ -184,6 +215,12 @@ girb --help     # ヘルプを表示
 |--------|------|
 | `query_model` | ActiveRecordモデルへのクエリ実行 |
 | `model_info` | モデルのスキーマ情報を取得 |
+
+### デバッグモード (rdbg) での追加ツール
+
+| ツール | 説明 |
+|--------|------|
+| `run_debug_command` | デバッガコマンドを実行（step、next、continue、breakなど） |
 
 ## カスタムプロバイダー
 

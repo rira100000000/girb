@@ -9,4 +9,5 @@ group :development, :test do
   gem "rspec", "~> 3.0"
   gem "webmock", "~> 3.0"
   gem "girb-ruby_llm", path: "../girb-ruby_llm"
+  gem "debug"
 end
