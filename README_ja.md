@@ -1,38 +1,43 @@
 # girb (Generative IRB)
 
-IRBセッションに組み込まれたAIアシスタント。実行中のコンテキストを理解し、デバッグや開発を支援します。
+Ruby開発のためのAIアシスタント。IRB、Rails console、debug gemで動作します。
 
 ## 特徴
 
-- **コンテキスト認識**: ローカル変数、インスタンス変数、selfオブジェクトなどを自動的に把握
-- **例外キャプチャ**: 直前の例外を自動キャプチャ - エラー後に「なぜ失敗した？」と聞くだけでOK
-- **セッション履歴の理解**: IRBでの入力履歴を追跡し、会話の流れを理解
-- **ツール実行**: コードの実行、オブジェクトの検査、ソースコードの取得などをAIが自律的に実行
-- **自律的な調査**: `continue_analysis`を使って、調査→実行→分析のサイクルをAIが自律的にループ可能
-- **debug gem統合**: Rubyのdebug gemと連携し、AIアシスタント付きのステップ実行デバッグが可能
-- **多言語対応**: ユーザーの言語を検出し、同じ言語で応答
-- **カスタマイズ可能**: 独自のプロンプトを追加して、プロジェクト固有の指示を設定可能
-- **プロバイダー非依存**: 任意のLLMプロバイダーを使用、または独自実装が可能
+- **コンテキスト認識**: ローカル変数、インスタンス変数、実行時の状態を理解
+- **ツール実行**: コード実行、オブジェクト検査、ファイル読み取りをAIが自律的に実行
+- **自律的な調査**: 調査→実行→分析のサイクルをAIがループ
+- **マルチ環境対応**: IRB、Rails console、debug gem (rdbg) で動作
+- **プロバイダー非依存**: 任意のLLM（OpenAI、Anthropic、Gemini、Ollama等）を使用可能
 
-## インストール
+## 目次
 
-### Railsプロジェクトの場合
+1. [設定](#1-設定) - 全環境共通のセットアップ
+2. [Rubyスクリプト (IRB)](#2-rubyスクリプト-irb) - 純粋なRubyでの使用
+3. [Rails](#3-rails) - Rails consoleでの使用
+4. [Debug Gem (rdbg)](#4-debug-gem-rdbg) - AIアシスタント付きステップ実行デバッグ
 
-Gemfileに追加:
+---
 
-```ruby
-group :development do
-  gem 'girb-ruby_llm'  # または girb-gemini
-end
-```
+## 1. 設定
 
-そして実行:
+### プロバイダーgemのインストール
+
+プロバイダーgemを選択してインストール:
 
 ```bash
-bundle install
+gem install girb-ruby_llm  # 推奨: 複数プロバイダー対応
+# または
+gem install girb-gemini    # Google Geminiのみ
 ```
 
-プロジェクトルートに `.girbrc` ファイルを作成:
+利用可能なプロバイダー:
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI、Anthropic、Gemini、Ollama等
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+
+### .girbrcの作成
+
+プロジェクトルート（またはホームディレクトリ）に `.girbrc` ファイルを作成:
 
 ```ruby
 # .girbrc
@@ -43,70 +48,56 @@ Girb.configure do |c|
 end
 ```
 
-これで `rails console` が自動的にgirbを読み込みます！
+girbは以下の順序で `.girbrc` を探します:
+1. カレントディレクトリ → 親ディレクトリ（ルートまで）
+2. `~/.girbrc` にフォールバック
 
-### 非Railsプロジェクトの場合
+### 設定オプション
 
-グローバルにインストール:
+```ruby
+Girb.configure do |c|
+  # 必須: LLMプロバイダー
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gpt-4o')
+
+  # オプション: デバッグ出力
+  c.debug = true
+
+  # オプション: カスタムシステムプロンプト
+  c.custom_prompt = <<~PROMPT
+    本番環境です。破壊的操作の前に必ず確認してください。
+  PROMPT
+end
+```
+
+### 環境変数（フォールバック）
+
+`.girbrc` が見つからない場合に使用:
+
+| 変数 | 説明 |
+|------|------|
+| `GIRB_PROVIDER` | プロバイダーgem（例: `girb-ruby_llm`） |
+| `GIRB_MODEL` | モデル名（例: `gemini-2.5-flash`） |
+| `GIRB_DEBUG` | `1` でデバッグ出力有効化 |
+
+---
+
+## 2. Rubyスクリプト (IRB)
+
+### インストール
 
 ```bash
 gem install girb girb-ruby_llm
 ```
 
-プロジェクトディレクトリに `.girbrc` ファイルを作成:
+### 使い方
 
-```ruby
-# .girbrc
-require 'girb-ruby_llm'
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
-end
-```
-
-`irb` の代わりに `girb` コマンドを使用します。
-
-## .girbrc の仕組み
-
-girbは以下の順序で `.girbrc` を探します:
-
-1. カレントディレクトリから親ディレクトリを遡って探索（ルートまで）
-2. `~/.girbrc` にフォールバック
-
-これにより:
-
-- **プロジェクト固有の設定**: プロジェクトルートに `.girbrc` を配置
-- **共有設定**: 親ディレクトリに `.girbrc` を配置（例: `~/work/.girbrc` で仕事用プロジェクト全体に適用）
-- **グローバルデフォルト**: ホームディレクトリに `.girbrc` を配置
-
-## プロバイダー
-
-現在利用可能なプロバイダー:
-
-- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - RubyLLM経由で複数プロバイダー対応（OpenAI、Anthropic、Gemini、Ollama等）
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
-
-[独自プロバイダーの作成](#カスタムプロバイダー)も可能です。
-
-## 使い方
-
-### Railsプロジェクトの場合
-
-```bash
-rails console
-```
-
-Railtieにより自動的にgirbが読み込まれます。
-
-### 非Railsプロジェクトの場合
+`irb` の代わりに `girb` コマンドを使用:
 
 ```bash
 girb
 ```
 
-### binding.girbでデバッグ
-
-コード内に `binding.girb` を挿入:
+または、コード内に `binding.girb` を挿入:
 
 ```ruby
 def problematic_method
@@ -116,111 +107,185 @@ def problematic_method
 end
 ```
 
-### debug gem (rdbg) でデバッグ
-
-AIアシスタント付きのステップ実行デバッグを行うには、スクリプトに `require "girb"` を追加:
-
-```ruby
-require "girb"
-
-def problematic_method
-  result = some_calculation
-  result
-end
-
-problematic_method
-```
-
-rdbgで起動:
-
-```bash
-rdbg your_script.rb
-```
-
-デバッガ内では以下の方法でAIに質問できます:
-- `ai <質問>` - AIに質問
-- `Ctrl+Space` - 入力内容をAIに送信
-- 日本語（非ASCII文字）の入力は自動的にAIにルーティング
-
-AIは `step`、`next`、`continue` などのデバッガコマンドを実行したり、ブレークポイントを設定することもできます。
-
 ### AIへの質問方法
 
-#### 方法1: Ctrl+Space
-
-入力後に `Ctrl+Space` を押すと、その入力がAIへの質問として送信されます。
+**Ctrl+Space**: 質問を入力した後に押す
 
 ```
-irb(main):001> このエラーの原因は？[Ctrl+Space]
+irb(main):001> なぜ失敗したの？[Ctrl+Space]
 ```
 
-#### 方法2: qqコマンド
+**qqコマンド**: qqメソッドを使用
 
 ```
 irb(main):001> qq "このメソッドの使い方を教えて"
 ```
 
-## 設定オプション
+### 利用可能なツール (IRB)
 
-`.girbrc` に追加:
+| ツール | 説明 |
+|--------|------|
+| `evaluate_code` | Rubyコードを実行 |
+| `inspect_object` | オブジェクトの詳細を検査 |
+| `get_source` | メソッド/クラスのソースコードを取得 |
+| `list_methods` | オブジェクトのメソッド一覧を取得 |
+| `find_file` | ファイルを検索 |
+| `read_file` | ファイル内容を読み取り |
+| `get_session_history` | IRBセッション履歴を取得 |
+| `continue_analysis` | 自律調査のためのコンテキスト更新をリクエスト |
+
+### 使用例
+
+```
+irb(main):001> x = [1, 2, 3]
+irb(main):002> 合計を求めるメソッドは？[Ctrl+Space]
+`x.sum` で合計6が得られます。他にも `x.reduce(:+)` や `x.inject(0, :+)` が使えます。
+```
+
+---
+
+## 3. Rails
+
+### インストール
+
+Gemfileに追加:
+
+```ruby
+group :development do
+  gem 'girb-ruby_llm'
+end
+```
+
+そして:
+
+```bash
+bundle install
+```
+
+### 設定
+
+Railsプロジェクトルートに `.girbrc` を作成:
 
 ```ruby
 require 'girb-ruby_llm'
 
 Girb.configure do |c|
-  # デバッグ出力（デフォルト: false）
-  c.debug = true
-
-  # カスタムプロンプト（オプション）
-  c.custom_prompt = <<~PROMPT
-    本番環境です。破壊的操作の前に必ず確認してください。
-  PROMPT
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
 end
 ```
 
-### コマンドラインオプション
+### 使い方
+
+`rails console` を実行するだけ - Railtieで自動的にgirbが読み込まれます:
 
 ```bash
-girb --debug    # デバッグ出力を有効化
-girb -d         # 同上
-girb --help     # ヘルプを表示
+rails console
 ```
 
-### 環境変数
-
-`girb` コマンドでは、`.girbrc` が見つからない場合に環境変数で設定することもできます:
-
-| 変数 | 説明 |
-|------|------|
-| `GIRB_PROVIDER` | 読み込むプロバイダーgem（例: `girb-ruby_llm`、`girb-gemini`） |
-| `GIRB_MODEL` | 使用するモデル（例: `gemini-2.5-flash`、`gpt-4o`） |
-| `GIRB_DEBUG` | `1`に設定するとデバッグ出力を有効化 |
-
-## AIが使用できるツール
+### 追加ツール (Rails)
 
 | ツール | 説明 |
 |--------|------|
-| `evaluate_code` | IRBのコンテキストでRubyコードを実行 |
-| `inspect_object` | オブジェクトの詳細を検査 |
-| `get_source` | メソッドやクラスのソースコードを取得 |
-| `list_methods` | オブジェクトのメソッド一覧を取得 |
-| `find_file` | プロジェクト内のファイルを検索 |
-| `read_file` | ファイルの内容を読み取り |
-| `session_history` | IRBセッションの履歴を取得 |
-| `continue_analysis` | 自律調査のためのコンテキスト更新をリクエスト |
-
-### Rails環境での追加ツール
-
-| ツール | 説明 |
-|--------|------|
-| `query_model` | ActiveRecordモデルへのクエリ実行 |
+| `query_model` | ActiveRecordクエリを実行 |
 | `model_info` | モデルのスキーマ情報を取得 |
 
-### デバッグモード (rdbg) での追加ツール
+### 使用例
+
+```
+irb(main):001> user = User.find(1)
+irb(main):002> user.update(name: "test")
+=> false
+irb(main):003> なぜ更新に失敗したの？[Ctrl+Space]
+`user.errors.full_messages` を確認したところ:
+- "Email can't be blank"
+更新時にemail属性が空になっています。
+```
+
+---
+
+## 4. Debug Gem (rdbg)
+
+AIアシスタント付きのステップ実行デバッグ。
+
+### インストール
+
+```bash
+gem install girb girb-ruby_llm debug
+```
+
+### 設定
+
+上記と同じ `.girbrc` を使用。
+
+### 使い方
+
+スクリプトに `require "girb"` を追加:
+
+```ruby
+require "girb"
+
+def calculate(x)
+  result = x * 2
+  result + 1
+end
+
+calculate(5)
+```
+
+rdbgで実行:
+
+```bash
+rdbg your_script.rb
+```
+
+### AIへの質問方法 (デバッグモード)
+
+- **`ai <質問>`** - AIに質問
+- **Ctrl+Space** - 現在の入力をAIに送信
+- **日本語入力** - 非ASCII文字は自動的にAIにルーティング
+
+```
+(rdbg) ai ここでのresultの値は？
+(rdbg) 次の行に進んで[Ctrl+Space]
+```
+
+### AIがデバッガコマンドを実行
+
+AIがデバッガコマンドを自動で実行できます:
+
+```
+(rdbg) ai このループを実行して、xが1になるタイミングを教えて
+```
+
+AIは `step`、`next`、`continue`、`break` などを自動的に使用します。
+
+### Ctrl+Cで中断
+
+Ctrl+Cで長時間実行中のAI操作を中断できます。AIは進捗を要約します。
+
+### 利用可能なツール (デバッグモード)
 
 | ツール | 説明 |
 |--------|------|
-| `run_debug_command` | デバッガコマンドを実行（step、next、continue、breakなど） |
+| `evaluate_code` | 現在のコンテキストでRubyコードを実行 |
+| `inspect_object` | オブジェクトの詳細を検査 |
+| `get_source` | メソッド/クラスのソースコードを取得 |
+| `read_file` | ソースファイルを読み取り |
+| `run_debug_command` | デバッガコマンドを実行 |
+| `get_session_history` | デバッグセッション履歴を取得 |
+
+### 使用例: 変数の追跡
+
+```
+(rdbg) ai このループでxの全ての値を追跡して、完了したら報告して
+
+[AIがブレークポイントを設定、continueを実行、値を収集]
+
+追跡したxの値: [7, 66, 85, 11, 53, ...]
+xが1になるのはイテレーション15です。
+```
+
+---
 
 ## カスタムプロバイダー
 
@@ -232,61 +297,26 @@ class MyProvider < Girb::Providers::Base
     @api_key = api_key
   end
 
-  def chat(messages:, system_prompt:, tools:)
-    # messages: { role: :user/:assistant/:tool_call/:tool_result, content: "..." } の配列
-    # tools: { name: "...", description: "...", parameters: {...} } の配列
-
+  def chat(messages:, system_prompt:, tools:, binding: nil)
     # LLM APIを呼び出す
     response = call_my_llm(messages, system_prompt, tools)
 
-    # Responseオブジェクトを返す
     Girb::Providers::Base::Response.new(
       text: response.text,
       function_calls: response.tool_calls&.map { |tc| { name: tc.name, args: tc.args } }
     )
   end
 end
-
-Girb.configure do |c|
-  c.provider = MyProvider.new(api_key: ENV['MY_API_KEY'])
-end
 ```
 
-## 使用例
-
-### デバッグ支援
-
-```
-irb(main):001> user = User.find(1)
-irb(main):002> user.update(name: "test")
-=> false
-irb(main):003> なぜ更新に失敗したの？[Ctrl+Space]
-`user.errors.full_messages` を確認したところ、バリデーションエラーが発生しています:
-- "Email can't be blank"
-nameの更新時にemailが空になっている可能性があります。
-```
-
-### コードの理解
-
-```
-irb(main):001> このプロジェクトでUserモデルはどこで定義されてる？[Ctrl+Space]
-app/models/user.rb で定義されています。
-```
-
-### パターン認識
-
-```
-irb(main):001> a = 1
-irb(main):002> b = 2
-irb(main):003> c = 3以降も続けるとzはいくつ？[Ctrl+Space]
-パターン a=1, b=2, c=3... を続けると、z=26 になります。
-```
+---
 
 ## 動作要件
 
 - Ruby 3.2.0以上
-- IRB 1.6.0以上
-- LLMプロバイダーgem（girb-ruby_llm または girb-gemini）
+- IRB 1.6.0以上（IRB/Rails使用時）
+- debug gem（rdbg使用時）
+- LLMプロバイダーgem
 
 ## ライセンス
 
