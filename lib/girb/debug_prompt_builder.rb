@@ -42,11 +42,17 @@ module Girb
       - Instance variables: `@x_values = []` then `@x_values << x`
       - Global variables: `$x_values = []` then `$x_values << x`
 
-      Example for tracking a variable's history:
+      Example for tracking a variable's history efficiently:
       1. `evaluate_code("$tracked = []")`
-      2. Set breakpoints where the variable changes
-      3. At each stop: `evaluate_code("$tracked << x")`
-      4. At the end: `evaluate_code("$tracked")` to see all values
+      2. Use a "silent" breakpoint that records but doesn't stop:
+         `break file.rb:11 if: ($tracked << x; false)`
+         This appends x to $tracked and returns false, so execution continues without stopping.
+      3. Set a normal breakpoint at the END of the script to see results:
+         `break file.rb:14`
+      4. `continue` to run through all iterations
+      5. At the final breakpoint: `evaluate_code("$tracked")` to see all values
+
+      This approach is much more efficient than stopping at every iteration!
 
       ## CRITICAL: Executing Debugger Commands
       When the user asks you to perform a debugging action (e.g., "go to the next line", "step into",
