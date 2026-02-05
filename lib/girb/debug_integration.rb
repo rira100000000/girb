@@ -3,6 +3,7 @@
 require "debug"
 require_relative "debug_context_builder"
 require_relative "debug_prompt_builder"
+require_relative "debug_session_history"
 
 module Girb
   module DebugIntegration
@@ -103,6 +104,7 @@ module Girb
           question = line.strip
           return :retry if question.empty?
 
+          Girb::DebugSessionHistory.record_ai_question(question)
           handle_ai_question(question)
           pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
           if pending_cmds.any?
@@ -118,6 +120,7 @@ module Girb
           question = line.sub(/^ai\s+/, "").strip
           return :retry if question.empty?
 
+          Girb::DebugSessionHistory.record_ai_question(question)
           handle_ai_question(question)
           pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
           if pending_cmds.any?
@@ -134,6 +137,7 @@ module Girb
           question = line.strip
           return :retry if question.empty?
 
+          Girb::DebugSessionHistory.record_ai_question(question)
           handle_ai_question(question)
           pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
           if pending_cmds.any?
@@ -145,6 +149,8 @@ module Girb
           return :retry
         end
 
+        # Record regular debugger commands
+        Girb::DebugSessionHistory.record_command(line)
         super
       end
 

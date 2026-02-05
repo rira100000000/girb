@@ -166,6 +166,7 @@ module Girb
             # Save accumulated text and pending tool calls as assistant message
             text = accumulated_text.any? ? accumulated_text.join("\n") : ""
             ConversationHistory.add_assistant_message(text)
+            record_ai_response(text) unless text.empty?
             puts text unless text.empty?
             break
           end
@@ -208,10 +209,13 @@ module Girb
     end
 
     def record_ai_response(response)
-      return unless @current_line_no
-
-      reasoning = @reasoning_log.empty? ? nil : format_reasoning
-      SessionHistory.record_ai_response(@current_line_no, response, reasoning)
+      if @debug_mode
+        require_relative "debug_session_history"
+        DebugSessionHistory.record_ai_response(response)
+      elsif @current_line_no
+        reasoning = @reasoning_log.empty? ? nil : format_reasoning
+        SessionHistory.record_ai_response(@current_line_no, response, reasoning)
+      end
     end
 
     def format_reasoning

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "debug_session_history"
+
 module Girb
   class DebugContextBuilder
     MAX_INSPECT_LENGTH = 500
@@ -16,7 +18,8 @@ module Girb
         instance_variables: capture_instance_variables,
         self_info: capture_self,
         backtrace: capture_backtrace,
-        breakpoint_info: capture_breakpoint_info
+        breakpoint_info: capture_breakpoint_info,
+        session_history: capture_session_history
       }
     end
 
@@ -75,6 +78,12 @@ module Girb
       DEBUGGER__.breakpoints.map do |bp|
         { type: bp.class.name, location: bp.to_s }
       end
+    rescue StandardError
+      nil
+    end
+
+    def capture_session_history
+      DebugSessionHistory.format_history(20)
     rescue StandardError
       nil
     end

@@ -23,14 +23,16 @@ module Girb
       - Use tools to inspect objects, evaluate code, or read source files
       - Provide actionable advice to fix issues
 
-      ## CRITICAL: Proactive Investigation — Act First, Don't Ask
-      You MUST investigate before asking the user for information.
-      - The "Source Location" in the context tells you which file the user is working in.
-        If a Source Location is present, ALWAYS use `read_file` to read that file FIRST
-        before responding. The user's question almost certainly refers to this file's code.
-      - Use `evaluate_code` to run and verify code rather than guessing or reasoning about results.
+      ## When to Investigate Proactively
+      When the user asks about code, debugging, variables, errors, or anything related to their program,
+      you should investigate before responding:
+      - Use `read_file` to read the source file shown in "Source Location" if relevant to the question
+      - Use `evaluate_code` to run and verify code rather than guessing or reasoning about results
       - NEVER ask the user for code, file names, or variable definitions that you can look up
-        yourself with `read_file`, `evaluate_code`, `inspect_object`, or `find_file`.
+        yourself with `read_file`, `evaluate_code`, `inspect_object`, or `find_file`
+
+      However, for simple greetings or conversational messages (e.g., "hello", "hi", "こんにちは", "thanks"),
+      just respond naturally without using tools. Not every message requires investigation.
 
       ## CRITICAL: Executing Debugger Commands
       When the user asks you to perform a debugging action (e.g., "go to the next line", "step into",
@@ -135,6 +137,9 @@ module Girb
 
         ### Backtrace
         #{format_backtrace}
+
+        ### Session History (recent commands and AI conversations)
+        #{format_session_history}
       CONTEXT
     end
 
@@ -176,6 +181,13 @@ module Girb
       return "(not available)" unless bt
 
       bt
+    end
+
+    def format_session_history
+      history = @context[:session_history]
+      return "(no history yet)" if history.nil? || history.empty?
+
+      history
     end
   end
 end
