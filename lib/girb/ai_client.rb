@@ -38,15 +38,21 @@ module Girb
 
         begin
           loop do
-            # Check for interrupt
+            # Check for interrupt at start of loop
             if Girb::AutoContinue.interrupted?
               Girb::AutoContinue.clear_interrupt!
-              puts "\n[girb] Interrupted by user (Ctrl+C)"
               handle_irb_interrupted
               break
             end
 
             process_with_tools(tools)
+
+            # Check for interrupt after API call (Ctrl+C during request)
+            if Girb::AutoContinue.interrupted?
+              Girb::AutoContinue.clear_interrupt!
+              handle_irb_interrupted
+              break
+            end
 
             break unless Girb::AutoContinue.active?
 
@@ -113,12 +119,29 @@ module Girb
         end
 
         messages = ConversationHistory.to_normalized
-        response = @provider.chat(
-          messages: messages,
-          system_prompt: @system_prompt,
-          tools: tools,
-          binding: @current_binding
-        )
+        begin
+          response = @provider.chat(
+            messages: messages,
+            system_prompt: @system_prompt,
+            tools: tools,
+            binding: @current_binding
+          )
+        rescue Interrupt => e
+          puts "\n[girb] Interrupted by user (Ctrl+C)"
+          Girb::AutoContinue.interrupt! unless @debug_mode
+          Girb::DebugIntegration.interrupt! if @debug_mode && defined?(Girb::DebugIntegration)
+          break
+        rescue Exception => e
+          # IRB::Abort and similar exceptions
+          if e.class.name.include?("Abort") || e.class.name.include?("Interrupt")
+            puts "\n[girb] Interrupted by user (Ctrl+C)"
+            Girb::AutoContinue.interrupt! unless @debug_mode
+            Girb::DebugIntegration.interrupt! if @debug_mode && defined?(Girb::DebugIntegration)
+            break
+          else
+            raise
+          end
+        end
 
         if Girb.configuration.debug
           puts "[girb] function_calls: #{response.function_calls.inspect}"
