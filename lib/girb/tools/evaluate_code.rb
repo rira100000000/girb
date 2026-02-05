@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "stringio"
 require_relative "base"
 
 module Girb
@@ -26,17 +27,37 @@ module Girb
       end
 
       def execute(binding, code:)
-        result = binding.eval(code)
-        {
+        captured_output = StringIO.new
+        original_stdout = $stdout
+        $stdout = captured_output
+
+        begin
+          result = binding.eval(code)
+        ensure
+          $stdout = original_stdout
+        end
+
+        stdout_str = captured_output.string
+        # Also print captured output to the real console for user visibility
+        print stdout_str unless stdout_str.empty?
+
+        response = {
           code: code,
           result: safe_inspect(result),
           result_class: result.class.name,
           success: true
         }
+        response[:stdout] = stdout_str unless stdout_str.empty?
+        response
       rescue SyntaxError => e
+        $stdout = original_stdout if $stdout != original_stdout
         { code: code, error: "Syntax error: #{e.message}", success: false }
       rescue StandardError => e
-        { code: code, error: "#{e.class}: #{e.message}", backtrace: e.backtrace&.first(5), success: false }
+        $stdout = original_stdout if $stdout != original_stdout
+        stdout_str = captured_output&.string
+        response = { code: code, error: "#{e.class}: #{e.message}", backtrace: e.backtrace&.first(5), success: false }
+        response[:stdout] = stdout_str if stdout_str && !stdout_str.empty?
+        response
       end
     end
   end

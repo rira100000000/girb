@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "auto_continue"
 require_relative "conversation_history"
 require_relative "providers/base"
 
@@ -11,9 +12,10 @@ module Girb
       @provider = Girb.configuration.provider!
     end
 
-    def ask(question, context, binding: nil, line_no: nil)
+    def ask(question, context, binding: nil, line_no: nil, irb_context: nil)
       @current_binding = binding
       @current_line_no = line_no
+      @irb_context = irb_context
       @reasoning_log = []
 
       prompt_builder = PromptBuilder.new(question, context)
@@ -23,7 +25,30 @@ module Girb
       ConversationHistory.add_user_message(user_message)
 
       tools = build_tools
-      process_with_tools(tools)
+      auto_continue_count = 0
+
+      loop do
+        process_with_tools(tools)
+
+        break unless Girb::AutoContinue.active?
+
+        auto_continue_count += 1
+        if auto_continue_count >= Girb::AutoContinue::MAX_ITERATIONS
+          puts "\n[girb] Auto-continue limit reached (#{Girb::AutoContinue::MAX_ITERATIONS})"
+          break
+        end
+
+        Girb::AutoContinue.reset!
+
+        # Rebuild context with current binding state
+        new_context = ContextBuilder.new(@current_binding, @irb_context).build
+        continuation = "(auto-continue: Your previous action has been completed. " \
+                       "Here is the updated context. Continue your investigation.)"
+        continuation_builder = PromptBuilder.new(continuation, new_context)
+        ConversationHistory.add_user_message(continuation_builder.user_message)
+      end
+
+      Girb::AutoContinue.reset!
     end
 
     private

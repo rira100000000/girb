@@ -79,7 +79,7 @@ module Girb
     def ask_ai(question, line_no)
       context = ContextBuilder.new(workspace.binding, self).build
       client = AiClient.new
-      client.ask(question, context, binding: workspace.binding, line_no: line_no)
+      client.ask(question, context, binding: workspace.binding, line_no: line_no, irb_context: self)
     rescue StandardError => e
       puts "[girb] Error: #{e.message}"
     end

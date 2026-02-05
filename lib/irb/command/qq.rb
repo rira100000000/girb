@@ -15,11 +15,12 @@ module IRB
           return
         end
 
-        unless Girb.configuration&.gemini_api_key
-          puts "[girb] Error: GEMINI_API_KEY not set"
-          puts "[girb] Run: export GEMINI_API_KEY=your-key"
-          puts "[girb] Or configure in your .irbrc:"
-          puts "[girb]   Girb.configure { |c| c.gemini_api_key = 'your-key' }"
+        unless Girb.configuration&.provider
+          puts "[girb] Error: No LLM provider configured."
+          puts "[girb] Install a provider gem and configure it:"
+          puts "[girb]   gem install girb-ruby_llm"
+          puts "[girb]   export GIRB_MODEL=gemini-2.5-flash"
+          puts "[girb]   export GEMINI_API_KEY=your-key"
           return
         end
 
@@ -41,7 +42,7 @@ module IRB
         end
 
         client = Girb::AiClient.new
-        client.ask(question, context, binding: current_binding, line_no: line_no)
+        client.ask(question, context, binding: current_binding, line_no: line_no, irb_context: irb_context)
       rescue Girb::Error => e
         puts "[girb] Error: #{e.message}"
       rescue StandardError => e
