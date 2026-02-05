@@ -73,9 +73,9 @@ module Girb
           @girb_auto_continue_count += 1
 
           if @girb_auto_continue_count > MAX_AUTO_CONTINUE
-            @ui.puts "[girb] Auto-continue limit reached (#{MAX_AUTO_CONTINUE})"
             Girb::DebugIntegration.auto_continue = false
             @girb_auto_continue_count = 0
+            handle_ai_turn_limit_reached
             return :retry
           end
 
@@ -188,6 +188,22 @@ module Girb
       rescue StandardError => e
         puts "[girb] Error: #{e.message}"
         puts e.backtrace.first(3).join("\n") if Girb.configuration.debug
+      end
+
+      def handle_ai_turn_limit_reached
+        current_binding = @tc&.current_frame&.eval_binding
+        return unless current_binding
+
+        context = Girb::DebugContextBuilder.new(current_binding).build
+        client = Girb::AiClient.new
+        limit_message = "(System: Auto-continue turn limit (#{MAX_AUTO_CONTINUE}) reached. " \
+                        "Summarize your progress so far and tell the user what was accomplished. " \
+                        "If the task is not complete, explain what remains and instruct the user " \
+                        "to continue with a follow-up request.)"
+        client.ask(limit_message, context, binding: current_binding, debug_mode: true)
+      rescue StandardError => e
+        puts "[girb] Auto-continue limit reached (#{MAX_AUTO_CONTINUE})"
+        puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
       end
     end
   end
