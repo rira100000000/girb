@@ -79,27 +79,28 @@ module Girb
             accumulated_text << response.text
           end
 
-          function_call = response.function_calls.first
-          tool_name = function_call[:name]
-          tool_args = function_call[:args] || {}
+          response.function_calls.each do |function_call|
+            tool_name = function_call[:name]
+            tool_args = function_call[:args] || {}
+            tool_id = function_call[:id]
 
-          if Girb.configuration.debug
-            puts "[girb] Tool: #{tool_name}(#{tool_args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
-          end
+            if Girb.configuration.debug
+              puts "[girb] Tool: #{tool_name}(#{tool_args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
+            end
 
-          result = execute_tool(tool_name, tool_args)
+            result = execute_tool(tool_name, tool_args)
 
-          @reasoning_log << {
-            tool: tool_name,
-            args: tool_args,
-            result: result
-          }
+            @reasoning_log << {
+              tool: tool_name,
+              args: tool_args,
+              result: result
+            }
 
-          # Record tool call and result in conversation history
-          ConversationHistory.add_tool_call(tool_name, tool_args, result)
+            ConversationHistory.add_tool_call(tool_name, tool_args, result, id: tool_id)
 
-          if Girb.configuration.debug && result.is_a?(Hash) && result[:error]
-            puts "[girb] Tool error: #{result[:error]}"
+            if Girb.configuration.debug && result.is_a?(Hash) && result[:error]
+              puts "[girb] Tool error: #{result[:error]}"
+            end
           end
         else
           # Text response
