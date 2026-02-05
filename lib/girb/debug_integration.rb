@@ -49,7 +49,7 @@ module Girb
         register_ai_command
         register_debug_tools
         setup_keybinding
-        puts "[girb] Debug AI assistant loaded. Use 'ai <question>' or Ctrl+Space."
+        puts "[girb] Debug AI assistant loaded. Use 'qq <question>' or Ctrl+Space."
       end
 
       private
@@ -170,8 +170,8 @@ module Girb
           return :retry
         end
 
-        if line.start_with?("ai ")
-          question = line.sub(/^ai\s+/, "").strip
+        if line.start_with?("qq ")
+          question = line.sub(/^qq\s+/, "").strip
           return :retry if question.empty?
 
           Girb::DebugSessionHistory.record_ai_question(question)

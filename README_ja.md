@@ -10,6 +10,29 @@ Ruby開発のためのAIアシスタント。IRB、Rails console、debug gemで�
 - **マルチ環境対応**: IRB、Rails console、debug gem (rdbg) で動作
 - **プロバイダー非依存**: 任意のLLM（OpenAI、Anthropic、Gemini、Ollama等）を使用可能
 
+## クイックスタート
+
+```bash
+# 1. インストール
+gem install girb girb-ruby_llm
+
+# 2. APIキーを設定
+export GEMINI_API_KEY="your-api-key"  # または OPENAI_API_KEY, ANTHROPIC_API_KEY
+
+# 3. ~/.girbrc を作成
+```ruby
+require 'girb-ruby_llm'
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+```
+
+# 4. 実行
+girb
+```
+
+質問を入力して **Ctrl+Space** を押すか、`qq <質問>` を使用します。
+
 ## 目次
 
 1. [設定](#1-設定) - 全環境共通のセットアップ
@@ -21,19 +44,28 @@ Ruby開発のためのAIアシスタント。IRB、Rails console、debug gemで�
 
 ## 1. 設定
 
-### プロバイダーgemのインストール
-
-プロバイダーgemを選択してインストール:
+### インストール
 
 ```bash
-gem install girb-ruby_llm  # 推奨: 複数プロバイダー対応
-# または
-gem install girb-gemini    # Google Geminiのみ
+gem install girb girb-ruby_llm
 ```
 
-利用可能なプロバイダー:
-- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI、Anthropic、Gemini、Ollama等
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+利用可能なプロバイダーgem:
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI、Anthropic、Gemini、Ollama等（推奨）
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Geminiのみ
+
+### APIキー
+
+使用するLLMプロバイダーのAPIキーを環境変数に設定:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+# または OPENAI_API_KEY, ANTHROPIC_API_KEY など
+```
+
+詳細な設定方法（Ollama、その他のプロバイダー、高度なオプション）は、プロバイダーgemのドキュメントを参照してください:
+- [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm)
+- [girb-gemini README](https://github.com/rira100000000/girb-gemini)
 
 ### .girbrcの作成
 
@@ -52,26 +84,39 @@ girbは以下の順序で `.girbrc` を探します:
 1. カレントディレクトリ → 親ディレクトリ（ルートまで）
 2. `~/.girbrc` にフォールバック
 
+### モデルの例
+
+```ruby
+# Google Gemini
+c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+
+# OpenAI
+c.provider = Girb::Providers::RubyLlm.new(model: 'gpt-5.2-2025-12-11')
+
+# Anthropic
+c.provider = Girb::Providers::RubyLlm.new(model: 'claude-opus-4-5')
+```
+
 ### 設定オプション
 
 ```ruby
 Girb.configure do |c|
   # 必須: LLMプロバイダー
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gpt-4o')
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
 
   # オプション: デバッグ出力
   c.debug = true
 
   # オプション: カスタムシステムプロンプト
   c.custom_prompt = <<~PROMPT
-    本番環境です。破壊的操作の前に必ず確認してください。
+    破壊的操作の前に必ず確認してください。
   PROMPT
 end
 ```
 
 ### 環境変数（フォールバック）
 
-`.girbrc` が見つからない場合に使用:
+`.girbrc` に設定がない場合に使用:
 
 | 変数 | 説明 |
 |------|------|
@@ -82,12 +127,6 @@ end
 ---
 
 ## 2. Rubyスクリプト (IRB)
-
-### インストール
-
-```bash
-gem install girb girb-ruby_llm
-```
 
 ### 使い方
 
@@ -118,7 +157,7 @@ irb(main):001> なぜ失敗したの？[Ctrl+Space]
 **qqコマンド**: qqメソッドを使用
 
 ```
-irb(main):001> qq "このメソッドの使い方を教えて"
+irb(main):001> qq このメソッドの使い方を教えて
 ```
 
 ### 利用可能なツール (IRB)
@@ -152,11 +191,10 @@ Gemfileに追加:
 
 ```ruby
 group :development do
+  gem 'girb'
   gem 'girb-ruby_llm'
 end
 ```
-
-そして:
 
 ```bash
 bundle install
@@ -164,15 +202,7 @@ bundle install
 
 ### 設定
 
-Railsプロジェクトルートに `.girbrc` を作成:
-
-```ruby
-require 'girb-ruby_llm'
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
-end
-```
+Railsプロジェクトルートに `.girbrc` を作成。詳細は[設定](#1-設定)を参照。
 
 ### 使い方
 
@@ -207,45 +237,61 @@ irb(main):003> なぜ更新に失敗したの？[Ctrl+Space]
 
 AIアシスタント付きのステップ実行デバッグ。
 
-### インストール
-
-```bash
-gem install girb girb-ruby_llm debug
-```
-
 ### 設定
 
 上記と同じ `.girbrc` を使用。
 
-### 使い方
+### Rubyスクリプトの場合
 
-スクリプトに `require "girb"` を追加:
+`require "debug"` と `require "girb"` を追加し、`debugger`ステートメントを使用:
+
+**注意:** `require "debug"` は必ず `require "girb"` より先に記述してください。
 
 ```ruby
+require "debug"
 require "girb"
 
 def calculate(x)
   result = x * 2
+  debugger  # ここでAIアシスタント付きで停止
   result + 1
 end
 
 calculate(5)
 ```
 
-rdbgで実行:
+rubyで実行:
 
 ```bash
-rdbg your_script.rb
+ruby your_script.rb
+```
+
+### Railsの場合
+
+debug gemより後にgirbを読み込むためinitializerを作成:
+
+```ruby
+# config/initializers/girb.rb
+require "girb" if Rails.env.development? || Rails.env.test?
+```
+
+コード内で`debugger`ステートメントを使用:
+
+```ruby
+def show
+  @user = User.find(params[:id])
+  debugger  # ここでAIアシスタント付きで停止
+end
 ```
 
 ### AIへの質問方法 (デバッグモード)
 
-- **`ai <質問>`** - AIに質問
+- **`qq <質問>`** - AIに質問
 - **Ctrl+Space** - 現在の入力をAIに送信
 - **日本語入力** - 非ASCII文字は自動的にAIにルーティング
 
 ```
-(rdbg) ai ここでのresultの値は？
+(rdbg) qq ここでのresultの値は？
 (rdbg) 次の行に進んで[Ctrl+Space]
 ```
 
@@ -254,7 +300,7 @@ rdbg your_script.rb
 AIがデバッガコマンドを自動で実行できます:
 
 ```
-(rdbg) ai このループを実行して、xが1になるタイミングを教えて
+(rdbg) qq このループを実行して、xが1になるタイミングを教えて
 ```
 
 AIは `step`、`next`、`continue`、`break` などを自動的に使用します。
@@ -277,12 +323,12 @@ Ctrl+Cで長時間実行中のAI操作を中断できます。AIは進捗を要�
 ### 使用例: 変数の追跡
 
 ```
-(rdbg) ai このループでxの全ての値を追跡して、完了したら報告して
+(rdbg) qq このループでxの全ての値を追跡して、完了したら報告して
 
 [AIがブレークポイントを設定、continueを実行、値を収集]
 
-追跡したxの値: [7, 66, 85, 11, 53, ...]
-xが1になるのはイテレーション15です。
+追跡したxの値: [7, 66, 85, 11, 53, 42, 99, 23]
+ループが完了しました。
 ```
 
 ---

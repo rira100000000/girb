@@ -12,6 +12,29 @@ An AI assistant for Ruby development. Works with IRB, Rails console, and the deb
 - **Multi-environment Support**: Works with IRB, Rails console, and debug gem (rdbg)
 - **Provider Agnostic**: Use any LLM (OpenAI, Anthropic, Gemini, Ollama, etc.)
 
+## Quick Start
+
+```bash
+# 1. Install
+gem install girb girb-ruby_llm
+
+# 2. Set your API key
+export GEMINI_API_KEY="your-api-key"  # or OPENAI_API_KEY, ANTHROPIC_API_KEY
+
+# 3. Create ~/.girbrc
+```ruby
+require 'girb-ruby_llm'
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+```
+
+# 4. Run
+girb
+```
+
+Then type a question and press **Ctrl+Space**, or use `qq <question>`.
+
 ## Table of Contents
 
 1. [Configuration](#1-configuration) - Common setup for all environments
@@ -23,19 +46,28 @@ An AI assistant for Ruby development. Works with IRB, Rails console, and the deb
 
 ## 1. Configuration
 
-### Install Provider Gem
-
-Choose a provider gem:
+### Installation
 
 ```bash
-gem install girb-ruby_llm  # Recommended: supports multiple providers
-# or
-gem install girb-gemini    # Google Gemini only
+gem install girb girb-ruby_llm
 ```
 
-Available providers:
-- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI, Anthropic, Gemini, Ollama, etc.
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+Available provider gems:
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI, Anthropic, Gemini, Ollama, etc. (Recommended)
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini only
+
+### API Keys
+
+Set the API key for your chosen LLM provider as an environment variable:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+# or OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
+```
+
+For detailed setup instructions (Ollama, other providers, advanced options), see the provider gem documentation:
+- [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm)
+- [girb-gemini README](https://github.com/rira100000000/girb-gemini)
 
 ### Create .girbrc
 
@@ -54,12 +86,25 @@ girb searches for `.girbrc` in this order:
 1. Current directory → parent directories (up to root)
 2. `~/.girbrc` as fallback
 
+### Model Examples
+
+```ruby
+# Google Gemini
+c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+
+# OpenAI
+c.provider = Girb::Providers::RubyLlm.new(model: 'gpt-5.2-2025-12-11')
+
+# Anthropic
+c.provider = Girb::Providers::RubyLlm.new(model: 'claude-opus-4-5')
+```
+
 ### Configuration Options
 
 ```ruby
 Girb.configure do |c|
   # Required: LLM provider
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gpt-4o')
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
 
   # Optional: Debug output
   c.debug = true
@@ -73,7 +118,7 @@ end
 
 ### Environment Variables (Fallback)
 
-Used when no `.girbrc` is found:
+Used when provider is not configured in `.girbrc`:
 
 | Variable | Description |
 |----------|-------------|
@@ -84,12 +129,6 @@ Used when no `.girbrc` is found:
 ---
 
 ## 2. Ruby Scripts (IRB)
-
-### Installation
-
-```bash
-gem install girb girb-ruby_llm
-```
 
 ### Usage
 
@@ -120,7 +159,7 @@ irb(main):001> Why did this fail?[Ctrl+Space]
 **qq command**: Use the qq method
 
 ```
-irb(main):001> qq "How do I use this method?"
+irb(main):001> qq How do I use this method?
 ```
 
 ### Available Tools (IRB)
@@ -154,11 +193,10 @@ Add to your Gemfile:
 
 ```ruby
 group :development do
+  gem 'girb'
   gem 'girb-ruby_llm'
 end
 ```
-
-Then:
 
 ```bash
 bundle install
@@ -166,15 +204,7 @@ bundle install
 
 ### Configuration
 
-Create `.girbrc` in your Rails project root:
-
-```ruby
-require 'girb-ruby_llm'
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
-end
-```
+Create `.girbrc` in your Rails project root. See [Configuration](#1-configuration) for details.
 
 ### Usage
 
@@ -209,45 +239,61 @@ The email attribute is being cleared during the update.
 
 Step-through debugging with AI assistance.
 
-### Installation
-
-```bash
-gem install girb girb-ruby_llm debug
-```
-
 ### Configuration
 
 Same `.girbrc` as above.
 
-### Usage
+### For Standalone Ruby Scripts
 
-Add `require "girb"` to your script:
+Add `require "debug"` and `require "girb"`, then use `debugger` statement:
+
+**Note:** `require "debug"` must come before `require "girb"`.
 
 ```ruby
+require "debug"
 require "girb"
 
 def calculate(x)
   result = x * 2
+  debugger  # Stops here with AI assistance
   result + 1
 end
 
 calculate(5)
 ```
 
-Run with rdbg:
+Run with ruby:
 
 ```bash
-rdbg your_script.rb
+ruby your_script.rb
+```
+
+### For Rails
+
+Create an initializer to load girb after debug gem:
+
+```ruby
+# config/initializers/girb.rb
+require "girb" if Rails.env.development? || Rails.env.test?
+```
+
+Then use `debugger` statement in your code:
+
+```ruby
+def show
+  @user = User.find(params[:id])
+  debugger  # Stops here with AI assistance
+end
 ```
 
 ### How to Ask AI (Debug Mode)
 
-- **`ai <question>`** - Ask AI a question
+- **`qq <question>`** - Ask AI a question
 - **Ctrl+Space** - Send current input to AI
 - **Natural language** - Non-ASCII input (e.g., Japanese) automatically routes to AI
 
 ```
-(rdbg) ai What is the value of result here?
+(rdbg) qq What is the value of result here?
 (rdbg) 次の行に進んで[Ctrl+Space]
 ```
 
@@ -256,7 +302,7 @@ rdbg your_script.rb
 The AI can run debugger commands for you:
 
 ```
-(rdbg) ai Step through this loop and tell me when x becomes 1
+(rdbg) qq Step through this loop and tell me when x becomes 1
 ```
 
 The AI will use `step`, `next`, `continue`, `break`, etc. automatically.
@@ -279,12 +325,12 @@ Press Ctrl+C to interrupt long-running AI operations. The AI will summarize prog
 ### Example: Variable Tracking
 
 ```
-(rdbg) ai Track all values of x through this loop and report when done
+(rdbg) qq Track all values of x through this loop and report when done
 
 [AI sets breakpoints, runs continue, collects values]
 
-Tracked values of x: [7, 66, 85, 11, 53, ...]
-x equals 1 at iteration 15.
+Tracked values of x: [7, 66, 85, 11, 53, 42, 99, 23]
+Loop completed.
 ```
 
 ---
