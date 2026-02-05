@@ -110,6 +110,16 @@ module Girb
 
           handle_ai_continuation
 
+          # Check for interrupt after API call (Ctrl+C during request)
+          if Girb::DebugIntegration.interrupted?
+            Girb::DebugIntegration.auto_continue = false
+            Girb::DebugIntegration.clear_interrupt!
+            @girb_auto_continue_count = 0
+            restore_interrupt_handler
+            handle_ai_interrupted
+            return :retry
+          end
+
           pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
           if pending_cmds.any?
             pending_cmds.each do |cmd|
@@ -255,6 +265,8 @@ module Girb
       def setup_interrupt_handler
         @original_int_handler = trap("INT") do
           Girb::DebugIntegration.interrupt!
+          # Raise Interrupt to break out of blocking IO operations
+          Thread.main.raise(Interrupt)
         end
       end
 
