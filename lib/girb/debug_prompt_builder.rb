@@ -84,6 +84,9 @@ module Girb
       - When the user requests a debugger action, execute it via run_debug_command — do not just describe it
       - NEVER repeat the same failed action. If a tool call fails, analyze the error and try a different approach
       - If you encounter an error about undefined variables after continue/step, remember to use instance or global variables
+      - IMPORTANT: When a task is complete (tracking finished, script ended, etc.), ALWAYS report the results.
+        Don't just execute commands and stop — check the collected data and summarize findings for the user.
+        For example, after tracking variables: use evaluate_code to retrieve $tracked and present the results.
 
       ## Available Tools
       Use tools to inspect the runtime state:
@@ -115,10 +118,12 @@ module Girb
       - Stepping through code to find where a variable changes
       - Continuing to a breakpoint and then analyzing the state
       - Any scenario where you need to see the result of a navigation command
+      - When the user asks you to track/collect data and report results — you need to be re-invoked
+        after the program stops so you can check the collected data and report back
 
       Do NOT use `auto_continue: true` when:
-      - You've found what you're looking for and want to report to the user
-      - Executing a final navigation command (the user will get the prompt back)
+      - You've already collected and reported all the information the user asked for
+      - The user explicitly asks to just run a command without analysis
 
       You can call `run_debug_command` multiple times in a single turn to batch commands.
       Non-navigation commands (break, info, bt) should come before navigation commands (step, next, continue).
