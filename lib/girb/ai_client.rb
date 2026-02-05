@@ -3,6 +3,8 @@
 require_relative "auto_continue"
 require_relative "conversation_history"
 require_relative "providers/base"
+require_relative "debug_context_builder"
+require_relative "debug_prompt_builder"
 
 module Girb
   class AiClient
@@ -12,13 +14,14 @@ module Girb
       @provider = Girb.configuration.provider!
     end
 
-    def ask(question, context, binding: nil, line_no: nil, irb_context: nil)
+    def ask(question, context, binding: nil, line_no: nil, irb_context: nil, debug_mode: false)
       @current_binding = binding
       @current_line_no = line_no
       @irb_context = irb_context
+      @debug_mode = debug_mode
       @reasoning_log = []
 
-      prompt_builder = PromptBuilder.new(question, context)
+      prompt_builder = create_prompt_builder(question, context)
       @system_prompt = prompt_builder.system_prompt
       user_message = prompt_builder.user_message
 
@@ -41,10 +44,10 @@ module Girb
         Girb::AutoContinue.reset!
 
         # Rebuild context with current binding state
-        new_context = ContextBuilder.new(@current_binding, @irb_context).build
+        new_context = create_context_builder(@current_binding, @irb_context).build
         continuation = "(auto-continue: Your previous action has been completed. " \
                        "Here is the updated context. Continue your investigation.)"
-        continuation_builder = PromptBuilder.new(continuation, new_context)
+        continuation_builder = create_prompt_builder(continuation, new_context)
         ConversationHistory.add_user_message(continuation_builder.user_message)
       end
 
@@ -52,6 +55,22 @@ module Girb
     end
 
     private
+
+    def create_prompt_builder(question, context)
+      if @debug_mode
+        DebugPromptBuilder.new(question, context)
+      else
+        PromptBuilder.new(question, context)
+      end
+    end
+
+    def create_context_builder(binding, irb_context)
+      if @debug_mode
+        DebugContextBuilder.new(binding)
+      else
+        ContextBuilder.new(binding, irb_context)
+      end
+    end
 
     def build_tools
       Tools.available_tools.map do |tool_class|
