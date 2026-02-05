@@ -15,6 +15,11 @@ module Girb
           "Get IRB session history. Can retrieve specific lines, line ranges, method definitions, AI conversation details, or full history."
         end
 
+        def available?
+          # Only available in IRB mode, not in debug mode
+          !defined?(DEBUGGER__)
+        end
+
         def parameters
           {
             type: "object",

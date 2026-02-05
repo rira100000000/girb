@@ -8,12 +8,23 @@ require_relative "tools/evaluate_code"
 require_relative "tools/read_file"
 require_relative "tools/find_file"
 require_relative "tools/session_history_tool"
+require_relative "tools/debug_session_history_tool"
 require_relative "tools/environment_tools"
 require_relative "tools/continue_analysis"
 
 module Girb
   module Tools
-    CORE_TOOLS = [InspectObject, GetSource, ListMethods, EvaluateCode, ReadFile, FindFile, SessionHistoryTool, GetCurrentDirectory, ContinueAnalysis].freeze
+    # Shared tools available in both IRB and debug modes
+    SHARED_TOOLS = [InspectObject, GetSource, ListMethods, EvaluateCode, ReadFile, FindFile, GetCurrentDirectory].freeze
+
+    # IRB-only tools
+    IRB_TOOLS = [SessionHistoryTool, ContinueAnalysis].freeze
+
+    # Debug-only tools (RunDebugCommand is registered separately in DebugIntegration)
+    DEBUG_TOOLS = [DebugSessionHistoryTool].freeze
+
+    # All core tools (used for backward compatibility)
+    CORE_TOOLS = (SHARED_TOOLS + IRB_TOOLS + DEBUG_TOOLS).freeze
 
     class << self
       def registered_tools

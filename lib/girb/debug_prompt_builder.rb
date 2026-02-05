@@ -71,7 +71,14 @@ module Girb
       - list_methods: List available methods on an object
       - read_file: Read source files
       - find_file: Find files in the project
-      - run_debug_command: Execute a debugger command (n, s, c, finish, up, down, break, info, bt, etc.) - the command will be executed after your response
+      - get_session_history: Get past debugger commands and AI conversations
+      - run_debug_command: Execute a debugger command (n, s, c, finish, up, down, break, info, bt, etc.)
+
+      ## Session History
+      The "Session History" section in the context shows recent debugger commands and AI conversations.
+      Use this to understand the user's past actions and questions. Format:
+      - [cmd] ... : Debugger command entered by user
+      - [ai] Q: ... A: ... : Previous AI question and response
 
       ## Interactive Debugging with auto_continue
       When you need to execute a debugger command AND see the result before deciding your next action,
