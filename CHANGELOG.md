@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.2.0] - 2026-02-05
+
+### Added
+
+- **Debug gem (rdbg) integration**: AI assistant for step-through debugging
+  - `ai <question>` command in debugger
+  - Ctrl+Space to send input to AI
+  - Auto-routing of non-ASCII (Japanese) input to AI
+  - `run_debug_command` tool for AI to execute debugger commands (step, next, continue, break, etc.)
+- **Auto-continue for autonomous AI investigation**
+  - `continue_analysis` tool for IRB mode context refresh
+  - AI can loop through investigate-execute-analyze cycles
+  - Configurable iteration limits (MAX_ITERATIONS = 20)
+- **Ctrl+C interrupt support** for both IRB and debug modes
+  - Graceful interruption of long-running AI operations
+  - AI summarizes progress when interrupted
+- **Debug session history tracking**
+  - Track debugger commands and AI conversations
+  - `get_session_history` tool for debug mode
+- **Efficient variable tracking** with silent breakpoints
+  - `break file:line if: ($var << x; false)` pattern for recording without stopping
+
+### Changed
+
+- Separate tool sets for IRB and debug modes
+  - SHARED_TOOLS: Common tools for both modes
+  - IRB_TOOLS: SessionHistoryTool, ContinueAnalysis
+  - DEBUG_TOOLS: DebugSessionHistoryTool, RunDebugCommand
+- Improved prompts for debug mode
+  - Guidance on variable persistence across frames
+  - Instructions for efficient breakpoint usage
+  - Context-aware investigation (don't use tools for greetings)
+
+### Fixed
+
+- Tool calls now include IDs for proper conversation history
+- Auto-continue loop properly exits when debug commands are queued
+
 ## [0.1.2] - 2026-02-03
 
 ### Added
