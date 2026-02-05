@@ -16,6 +16,18 @@ module Girb
       def reset!
         @active = false
       end
+
+      def interrupted?
+        @interrupted || false
+      end
+
+      def interrupt!
+        @interrupted = true
+      end
+
+      def clear_interrupt!
+        @interrupted = false
+      end
     end
   end
 end

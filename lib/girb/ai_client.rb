@@ -34,29 +34,42 @@ module Girb
         process_with_tools(tools)
       else
         auto_continue_count = 0
+        original_int_handler = setup_interrupt_handler
 
-        loop do
-          process_with_tools(tools)
+        begin
+          loop do
+            # Check for interrupt
+            if Girb::AutoContinue.interrupted?
+              Girb::AutoContinue.clear_interrupt!
+              puts "\n[girb] Interrupted by user (Ctrl+C)"
+              handle_irb_interrupted
+              break
+            end
 
-          break unless Girb::AutoContinue.active?
+            process_with_tools(tools)
 
-          auto_continue_count += 1
-          if auto_continue_count >= Girb::AutoContinue::MAX_ITERATIONS
-            puts "\n[girb] Auto-continue limit reached (#{Girb::AutoContinue::MAX_ITERATIONS})"
-            break
+            break unless Girb::AutoContinue.active?
+
+            auto_continue_count += 1
+            if auto_continue_count >= Girb::AutoContinue::MAX_ITERATIONS
+              handle_irb_limit_reached
+              break
+            end
+
+            Girb::AutoContinue.reset!
+
+            # Rebuild context with current binding state
+            new_context = create_context_builder(@current_binding, @irb_context).build
+            continuation = "(auto-continue: Your previous action has been completed. " \
+                           "Here is the updated context. Continue your investigation.)"
+            continuation_builder = create_prompt_builder(continuation, new_context)
+            ConversationHistory.add_user_message(continuation_builder.user_message)
           end
-
+        ensure
+          restore_interrupt_handler(original_int_handler)
           Girb::AutoContinue.reset!
-
-          # Rebuild context with current binding state
-          new_context = create_context_builder(@current_binding, @irb_context).build
-          continuation = "(auto-continue: Your previous action has been completed. " \
-                         "Here is the updated context. Continue your investigation.)"
-          continuation_builder = create_prompt_builder(continuation, new_context)
-          ConversationHistory.add_user_message(continuation_builder.user_message)
+          Girb::AutoContinue.clear_interrupt!
         end
-
-        Girb::AutoContinue.reset!
       end
     end
 
@@ -225,6 +238,50 @@ module Girb
         result_str = result_str[0, 500] + "..." if result_str.length > 500
         "Tool: #{log[:tool]}(#{args_str})\nResult: #{result_str}"
       end.join("\n\n")
+    end
+
+    def setup_interrupt_handler
+      trap("INT") do
+        Girb::AutoContinue.interrupt!
+      end
+    end
+
+    def restore_interrupt_handler(original_handler)
+      if original_handler
+        trap("INT", original_handler)
+      else
+        trap("INT", "DEFAULT")
+      end
+    end
+
+    def handle_irb_interrupted
+      return unless @current_binding
+
+      new_context = create_context_builder(@current_binding, @irb_context).build
+      interrupt_message = "(System: User interrupted with Ctrl+C. " \
+                          "Briefly summarize your progress so far. " \
+                          "Tell the user where you stopped and how to continue if needed.)"
+      continuation_builder = create_prompt_builder(interrupt_message, new_context)
+      ConversationHistory.add_user_message(continuation_builder.user_message)
+      process_with_tools(build_tools)
+    rescue StandardError => e
+      puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
+    end
+
+    def handle_irb_limit_reached
+      puts "\n[girb] Auto-continue limit reached (#{Girb::AutoContinue::MAX_ITERATIONS})"
+      return unless @current_binding
+
+      new_context = create_context_builder(@current_binding, @irb_context).build
+      limit_message = "(System: Auto-continue limit (#{Girb::AutoContinue::MAX_ITERATIONS}) reached. " \
+                      "Summarize your progress so far and tell the user what was accomplished. " \
+                      "If the task is not complete, explain what remains and instruct the user " \
+                      "to continue with a follow-up request.)"
+      continuation_builder = create_prompt_builder(limit_message, new_context)
+      ConversationHistory.add_user_message(continuation_builder.user_message)
+      process_with_tools(build_tools)
+    rescue StandardError => e
+      puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
     end
   end
 end
