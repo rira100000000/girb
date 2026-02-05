@@ -108,7 +108,20 @@ module Girb
             return :retry
           end
 
-          handle_ai_continuation
+          begin
+            handle_ai_continuation
+          rescue Exception => e
+            if e.is_a?(Interrupt) || e.class.name.include?("Interrupt") || e.class.name.include?("Abort")
+              Girb::DebugIntegration.auto_continue = false
+              Girb::DebugIntegration.clear_interrupt!
+              @girb_auto_continue_count = 0
+              restore_interrupt_handler
+              handle_ai_interrupted
+              return :retry
+            else
+              raise
+            end
+          end
 
           # Check for interrupt after API call (Ctrl+C during request)
           if Girb::DebugIntegration.interrupted?
