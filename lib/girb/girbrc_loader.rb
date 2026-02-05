@@ -32,12 +32,6 @@ module Girb
         find_config(".girbrc", start_dir)
       end
 
-      # Find .gdebugrc by traversing from start_dir up to root,
-      # then fall back to ~/.gdebugrc
-      def find_gdebugrc(start_dir = Dir.pwd)
-        find_config(".gdebugrc", start_dir)
-      end
-
       # Load .girbrc if found
       def load_girbrc(start_dir = Dir.pwd)
         girbrc = find_girbrc(start_dir)
@@ -51,22 +45,6 @@ module Girb
         true
       rescue SyntaxError, LoadError, StandardError => e
         warn "[girb] Error loading #{girbrc}: #{e.message}"
-        false
-      end
-
-      # Load .gdebugrc if found (for debug gem integration)
-      def load_gdebugrc(start_dir = Dir.pwd)
-        gdebugrc = find_gdebugrc(start_dir)
-        return false unless gdebugrc
-
-        if Girb.configuration&.debug
-          warn "[girb] Loading #{gdebugrc}"
-        end
-
-        load gdebugrc.to_s
-        true
-      rescue SyntaxError, LoadError, StandardError => e
-        warn "[girb] Error loading #{gdebugrc}: #{e.message}"
         false
       end
     end

@@ -44,8 +44,7 @@ require_relative "girb/railtie" if defined?(Rails::Railtie)
 # debug gem がロードされていたら DebugIntegration を組み込む
 if defined?(DEBUGGER__)
   Girb.configure unless Girb.configuration
-  # Load .gdebugrc for debug-specific configuration
-  GirbrcLoader.load_gdebugrc
+  GirbrcLoader.load_girbrc
   require_relative "girb/debug_integration"
   Girb::DebugIntegration.setup
 end
