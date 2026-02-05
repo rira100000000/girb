@@ -11,7 +11,7 @@ module Girb
     @interrupted = false
 
     class << self
-      attr_accessor :ai_triggered, :auto_continue, :interrupted
+      attr_accessor :ai_triggered, :auto_continue, :interrupted, :api_thread
 
       def pending_debug_commands
         @pending_debug_commands ||= []
@@ -276,10 +276,12 @@ module Girb
       end
 
       def setup_interrupt_handler
+        Girb::DebugIntegration.api_thread = Thread.current
         @original_int_handler = trap("INT") do
           Girb::DebugIntegration.interrupt!
           # Raise Interrupt to break out of blocking IO operations
-          Thread.main.raise(Interrupt)
+          thread = Girb::DebugIntegration.api_thread
+          thread&.raise(Interrupt) if thread&.alive?
         end
       end
 

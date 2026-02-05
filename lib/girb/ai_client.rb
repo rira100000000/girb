@@ -112,6 +112,12 @@ module Girb
       accumulated_text = []
 
       loop do
+        # Check for interrupt at start of each iteration
+        if check_interrupted?
+          puts "\n[girb] Interrupted by user (Ctrl+C)"
+          break
+        end
+
         iterations += 1
         if iterations > MAX_TOOL_ITERATIONS
           puts "\n[girb] Tool iteration limit reached"
@@ -266,6 +272,14 @@ module Girb
     def setup_interrupt_handler
       trap("INT") do
         Girb::AutoContinue.interrupt!
+      end
+    end
+
+    def check_interrupted?
+      if @debug_mode
+        defined?(Girb::DebugIntegration) && Girb::DebugIntegration.interrupted?
+      else
+        Girb::AutoContinue.interrupted?
       end
     end
 
