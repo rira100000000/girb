@@ -1,40 +1,45 @@
 # girb (Generative IRB)
 
-An AI assistant embedded in your IRB session. It understands your runtime context and helps with debugging and development.
+An AI assistant for Ruby development. Works with IRB, Rails console, and the debug gem.
 
 [日本語版 README](README_ja.md)
 
 ## Features
 
-- **Context Awareness**: Automatically understands local variables, instance variables, and self object
-- **Exception Capture**: Automatically captures recent exceptions - just ask "why did this fail?" after an error
-- **Session History Understanding**: Tracks IRB input history and understands conversation flow
-- **Tool Execution**: AI autonomously executes code, inspects objects, and retrieves source code
-- **Autonomous Investigation**: AI can loop through investigate-execute-analyze cycles using `continue_analysis`
-- **Debug Gem Integration**: Use with Ruby's debug gem for step-through debugging with AI assistance
-- **Multi-language Support**: Detects user's language and responds in the same language
-- **Customizable**: Add custom prompts for project-specific instructions
-- **Provider Agnostic**: Use any LLM provider or implement your own
+- **Context Awareness**: Understands local variables, instance variables, and runtime state
+- **Tool Execution**: AI autonomously executes code, inspects objects, and reads files
+- **Autonomous Investigation**: AI loops through investigate-execute-analyze cycles
+- **Multi-environment Support**: Works with IRB, Rails console, and debug gem (rdbg)
+- **Provider Agnostic**: Use any LLM (OpenAI, Anthropic, Gemini, Ollama, etc.)
 
-## Installation
+## Table of Contents
 
-### For Rails Projects
+1. [Configuration](#1-configuration) - Common setup for all environments
+2. [Ruby Scripts (IRB)](#2-ruby-scripts-irb) - Using with pure Ruby
+3. [Rails](#3-rails) - Using with Rails console
+4. [Debug Gem (rdbg)](#4-debug-gem-rdbg) - Step-through debugging with AI
 
-Add to your Gemfile:
+---
 
-```ruby
-group :development do
-  gem 'girb-ruby_llm'  # or girb-gemini
-end
-```
+## 1. Configuration
 
-Then run:
+### Install Provider Gem
+
+Choose a provider gem:
 
 ```bash
-bundle install
+gem install girb-ruby_llm  # Recommended: supports multiple providers
+# or
+gem install girb-gemini    # Google Gemini only
 ```
 
-Create a `.girbrc` file in your project root:
+Available providers:
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI, Anthropic, Gemini, Ollama, etc.
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
+
+### Create .girbrc
+
+Create a `.girbrc` file in your project root (or home directory for global config):
 
 ```ruby
 # .girbrc
@@ -45,70 +50,56 @@ Girb.configure do |c|
 end
 ```
 
-Now `rails console` will automatically load girb!
+girb searches for `.girbrc` in this order:
+1. Current directory → parent directories (up to root)
+2. `~/.girbrc` as fallback
 
-### For Non-Rails Projects
+### Configuration Options
 
-Install globally:
+```ruby
+Girb.configure do |c|
+  # Required: LLM provider
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gpt-4o')
+
+  # Optional: Debug output
+  c.debug = true
+
+  # Optional: Custom system prompt
+  c.custom_prompt = <<~PROMPT
+    This is production. Always confirm before destructive operations.
+  PROMPT
+end
+```
+
+### Environment Variables (Fallback)
+
+Used when no `.girbrc` is found:
+
+| Variable | Description |
+|----------|-------------|
+| `GIRB_PROVIDER` | Provider gem (e.g., `girb-ruby_llm`) |
+| `GIRB_MODEL` | Model name (e.g., `gemini-2.5-flash`) |
+| `GIRB_DEBUG` | Set to `1` for debug output |
+
+---
+
+## 2. Ruby Scripts (IRB)
+
+### Installation
 
 ```bash
 gem install girb girb-ruby_llm
 ```
 
-Create a `.girbrc` file in your project directory:
+### Usage
 
-```ruby
-# .girbrc
-require 'girb-ruby_llm'
-
-Girb.configure do |c|
-  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
-end
-```
-
-Then use `girb` command instead of `irb`.
-
-## How .girbrc Works
-
-girb searches for `.girbrc` in the following order:
-
-1. Current directory, then parent directories (up to root)
-2. `~/.girbrc` as fallback
-
-This allows you to:
-
-- **Project-specific settings**: Place `.girbrc` in your project root
-- **Shared settings**: Place `.girbrc` in a parent directory (e.g., `~/work/.girbrc` for all work projects)
-- **Global default**: Place `.girbrc` in your home directory
-
-## Providers
-
-Currently available providers:
-
-- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - Multiple providers via RubyLLM (OpenAI, Anthropic, Gemini, Ollama, etc.)
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini
-
-You can also [create your own provider](#custom-providers).
-
-## Usage
-
-### For Rails Projects
-
-```bash
-rails console
-```
-
-girb is automatically loaded via Railtie.
-
-### For Non-Rails Projects
+Use `girb` command instead of `irb`:
 
 ```bash
 girb
 ```
 
-### Debug with binding.girb
-
-Insert `binding.girb` in your code:
+Or insert `binding.girb` in your code:
 
 ```ruby
 def problematic_method
@@ -118,111 +109,185 @@ def problematic_method
 end
 ```
 
-### Debug with debug gem (rdbg)
-
-For step-through debugging with AI assistance, add `require "girb"` to your script:
-
-```ruby
-require "girb"
-
-def problematic_method
-  result = some_calculation
-  result
-end
-
-problematic_method
-```
-
-Then run with rdbg:
-
-```bash
-rdbg your_script.rb
-```
-
-In the debugger, use:
-- `ai <question>` - Ask AI a question
-- `Ctrl+Space` - Send current input to AI
-- Natural language (non-ASCII) input is automatically routed to AI
-
-The AI can execute debugger commands like `step`, `next`, `continue`, and set breakpoints for you.
-
 ### How to Ask AI
 
-#### Method 1: Ctrl+Space
-
-Press `Ctrl+Space` after typing to send your input as a question to AI.
+**Ctrl+Space**: Press after typing your question
 
 ```
-irb(main):001> What's causing this error?[Ctrl+Space]
+irb(main):001> Why did this fail?[Ctrl+Space]
 ```
 
-#### Method 2: qq command
+**qq command**: Use the qq method
 
 ```
 irb(main):001> qq "How do I use this method?"
 ```
 
-## Configuration Options
+### Available Tools (IRB)
 
-Add to your `.girbrc`:
+| Tool | Description |
+|------|-------------|
+| `evaluate_code` | Execute Ruby code |
+| `inspect_object` | Inspect object details |
+| `get_source` | Get method/class source code |
+| `list_methods` | List methods of an object |
+| `find_file` | Search for files |
+| `read_file` | Read file contents |
+| `get_session_history` | Get IRB session history |
+| `continue_analysis` | Request context refresh for autonomous investigation |
+
+### Example
+
+```
+irb(main):001> x = [1, 2, 3]
+irb(main):002> What methods can I use to find the sum?[Ctrl+Space]
+You can use `x.sum` which returns 6. Alternatively, `x.reduce(:+)` or `x.inject(0, :+)`.
+```
+
+---
+
+## 3. Rails
+
+### Installation
+
+Add to your Gemfile:
+
+```ruby
+group :development do
+  gem 'girb-ruby_llm'
+end
+```
+
+Then:
+
+```bash
+bundle install
+```
+
+### Configuration
+
+Create `.girbrc` in your Rails project root:
 
 ```ruby
 require 'girb-ruby_llm'
 
 Girb.configure do |c|
-  # Debug output (default: false)
-  c.debug = true
-
-  # Custom prompt (optional)
-  c.custom_prompt = <<~PROMPT
-    This is a production environment. Always confirm before destructive operations.
-  PROMPT
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
 end
 ```
 
-### Command Line Options
+### Usage
+
+Just run `rails console` - girb loads automatically via Railtie:
 
 ```bash
-girb --debug    # Enable debug output
-girb -d         # Same as above
-girb --help     # Show help
+rails console
 ```
 
-### Environment Variables
-
-For `girb` command, you can also configure via environment variables (used when no `.girbrc` is found):
-
-| Variable | Description |
-|----------|-------------|
-| `GIRB_PROVIDER` | Provider gem to load (e.g., `girb-ruby_llm`, `girb-gemini`) |
-| `GIRB_MODEL` | Model to use (e.g., `gemini-2.5-flash`, `gpt-4o`) |
-| `GIRB_DEBUG` | Set to `1` to enable debug output |
-
-## Available Tools
+### Additional Tools (Rails)
 
 | Tool | Description |
 |------|-------------|
-| `evaluate_code` | Execute Ruby code in IRB context |
-| `inspect_object` | Inspect object details |
-| `get_source` | Get source code of methods or classes |
-| `list_methods` | List methods of an object |
-| `find_file` | Search for files in the project |
-| `read_file` | Read file contents |
-| `session_history` | Get IRB session history |
-| `continue_analysis` | Request context refresh for autonomous investigation |
-
-### Additional Tools in Rails Environment
-
-| Tool | Description |
-|------|-------------|
-| `query_model` | Execute queries on ActiveRecord models |
+| `query_model` | Execute ActiveRecord queries |
 | `model_info` | Get model schema information |
 
-### Additional Tools in Debug Mode (rdbg)
+### Example
+
+```
+irb(main):001> user = User.find(1)
+irb(main):002> user.update(name: "test")
+=> false
+irb(main):003> Why did the update fail?[Ctrl+Space]
+Checking `user.errors.full_messages` shows:
+- "Email can't be blank"
+The email attribute is being cleared during the update.
+```
+
+---
+
+## 4. Debug Gem (rdbg)
+
+Step-through debugging with AI assistance.
+
+### Installation
+
+```bash
+gem install girb girb-ruby_llm debug
+```
+
+### Configuration
+
+Same `.girbrc` as above.
+
+### Usage
+
+Add `require "girb"` to your script:
+
+```ruby
+require "girb"
+
+def calculate(x)
+  result = x * 2
+  result + 1
+end
+
+calculate(5)
+```
+
+Run with rdbg:
+
+```bash
+rdbg your_script.rb
+```
+
+### How to Ask AI (Debug Mode)
+
+- **`ai <question>`** - Ask AI a question
+- **Ctrl+Space** - Send current input to AI
+- **Natural language** - Non-ASCII input (e.g., Japanese) automatically routes to AI
+
+```
+(rdbg) ai What is the value of result here?
+(rdbg) 次の行に進んで[Ctrl+Space]
+```
+
+### AI Can Execute Debug Commands
+
+The AI can run debugger commands for you:
+
+```
+(rdbg) ai Step through this loop and tell me when x becomes 1
+```
+
+The AI will use `step`, `next`, `continue`, `break`, etc. automatically.
+
+### Ctrl+C to Interrupt
+
+Press Ctrl+C to interrupt long-running AI operations. The AI will summarize progress.
+
+### Available Tools (Debug Mode)
 
 | Tool | Description |
 |------|-------------|
-| `run_debug_command` | Execute debugger commands (step, next, continue, break, etc.) |
+| `evaluate_code` | Execute Ruby code in current context |
+| `inspect_object` | Inspect object details |
+| `get_source` | Get method/class source code |
+| `read_file` | Read source files |
+| `run_debug_command` | Execute debugger commands |
+| `get_session_history` | Get debug session history |
+
+### Example: Variable Tracking
+
+```
+(rdbg) ai Track all values of x through this loop and report when done
+
+[AI sets breakpoints, runs continue, collects values]
+
+Tracked values of x: [7, 66, 85, 11, 53, ...]
+x equals 1 at iteration 15.
+```
+
+---
 
 ## Custom Providers
 
@@ -234,61 +299,26 @@ class MyProvider < Girb::Providers::Base
     @api_key = api_key
   end
 
-  def chat(messages:, system_prompt:, tools:)
-    # messages: Array of { role: :user/:assistant/:tool_call/:tool_result, content: "..." }
-    # tools: Array of { name: "...", description: "...", parameters: {...} }
-
-    # Call your LLM API here
+  def chat(messages:, system_prompt:, tools:, binding: nil)
+    # Call your LLM API
     response = call_my_llm(messages, system_prompt, tools)
 
-    # Return a Response object
     Girb::Providers::Base::Response.new(
       text: response.text,
       function_calls: response.tool_calls&.map { |tc| { name: tc.name, args: tc.args } }
     )
   end
 end
-
-Girb.configure do |c|
-  c.provider = MyProvider.new(api_key: ENV['MY_API_KEY'])
-end
 ```
 
-## Examples
-
-### Debugging Assistance
-
-```
-irb(main):001> user = User.find(1)
-irb(main):002> user.update(name: "test")
-=> false
-irb(main):003> Why did the update fail?[Ctrl+Space]
-Checking `user.errors.full_messages` shows validation errors:
-- "Email can't be blank"
-The email might be getting cleared when updating the name.
-```
-
-### Code Understanding
-
-```
-irb(main):001> Where is the User model defined in this project?[Ctrl+Space]
-It's defined in app/models/user.rb.
-```
-
-### Pattern Recognition
-
-```
-irb(main):001> a = 1
-irb(main):002> b = 2
-irb(main):003> What would z be if I continue with c = 3 and beyond?[Ctrl+Space]
-Following the pattern a=1, b=2, c=3..., z would be 26.
-```
+---
 
 ## Requirements
 
-- Ruby 3.2.0 or higher
-- IRB 1.6.0 or higher
-- An LLM provider gem (girb-ruby_llm or girb-gemini)
+- Ruby 3.2.0+
+- IRB 1.6.0+ (for IRB/Rails usage)
+- debug gem (for rdbg usage)
+- An LLM provider gem
 
 ## License
 
@@ -296,4 +326,4 @@ MIT License
 
 ## Contributing
 
-Bug reports and feature requests are welcome at [GitHub Issues](https://github.com/rira100000000/girb/issues).
+Bug reports and feature requests welcome at [GitHub Issues](https://github.com/rira100000000/girb/issues).
