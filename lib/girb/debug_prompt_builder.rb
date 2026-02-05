@@ -34,6 +34,20 @@ module Girb
       However, for simple greetings or conversational messages (e.g., "hello", "hi", "こんにちは", "thanks"),
       just respond naturally without using tools. Not every message requires investigation.
 
+      ## CRITICAL: Variable Persistence Across Frames
+      Local variables created via `evaluate_code` do NOT persist after `step`, `next`, or `continue`.
+      When the program moves to a new frame, those local variables are lost.
+
+      To track values across multiple breakpoints or frames, use:
+      - Instance variables: `@x_values = []` then `@x_values << x`
+      - Global variables: `$x_values = []` then `$x_values << x`
+
+      Example for tracking a variable's history:
+      1. `evaluate_code("$tracked = []")`
+      2. Set breakpoints where the variable changes
+      3. At each stop: `evaluate_code("$tracked << x")`
+      4. At the end: `evaluate_code("$tracked")` to see all values
+
       ## CRITICAL: Executing Debugger Commands
       When the user asks you to perform a debugging action (e.g., "go to the next line", "step into",
       "continue", "advance to line N", "set a breakpoint"), you MUST use the `run_debug_command` tool.
@@ -62,6 +76,8 @@ module Girb
       - Keep responses concise and actionable
       - Focus on the immediate debugging task
       - When the user requests a debugger action, execute it via run_debug_command — do not just describe it
+      - NEVER repeat the same failed action. If a tool call fails, analyze the error and try a different approach
+      - If you encounter an error about undefined variables after continue/step, remember to use instance or global variables
 
       ## Available Tools
       Use tools to inspect the runtime state:
