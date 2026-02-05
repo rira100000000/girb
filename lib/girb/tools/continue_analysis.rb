@@ -25,6 +25,11 @@ module Girb
             required: ["reason"]
           }
         end
+
+        def available?
+          # In debug mode, use run_debug_command with auto_continue instead
+          !defined?(DEBUGGER__)
+        end
       end
 
       def execute(binding, reason:)

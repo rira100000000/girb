@@ -28,30 +28,36 @@ module Girb
       ConversationHistory.add_user_message(user_message)
 
       tools = build_tools
-      auto_continue_count = 0
 
-      loop do
+      # In debug mode, auto-continue is handled by DebugIntegration, not here
+      if @debug_mode
         process_with_tools(tools)
+      else
+        auto_continue_count = 0
 
-        break unless Girb::AutoContinue.active?
+        loop do
+          process_with_tools(tools)
 
-        auto_continue_count += 1
-        if auto_continue_count >= Girb::AutoContinue::MAX_ITERATIONS
-          puts "\n[girb] Auto-continue limit reached (#{Girb::AutoContinue::MAX_ITERATIONS})"
-          break
+          break unless Girb::AutoContinue.active?
+
+          auto_continue_count += 1
+          if auto_continue_count >= Girb::AutoContinue::MAX_ITERATIONS
+            puts "\n[girb] Auto-continue limit reached (#{Girb::AutoContinue::MAX_ITERATIONS})"
+            break
+          end
+
+          Girb::AutoContinue.reset!
+
+          # Rebuild context with current binding state
+          new_context = create_context_builder(@current_binding, @irb_context).build
+          continuation = "(auto-continue: Your previous action has been completed. " \
+                         "Here is the updated context. Continue your investigation.)"
+          continuation_builder = create_prompt_builder(continuation, new_context)
+          ConversationHistory.add_user_message(continuation_builder.user_message)
         end
 
         Girb::AutoContinue.reset!
-
-        # Rebuild context with current binding state
-        new_context = create_context_builder(@current_binding, @irb_context).build
-        continuation = "(auto-continue: Your previous action has been completed. " \
-                       "Here is the updated context. Continue your investigation.)"
-        continuation_builder = create_prompt_builder(continuation, new_context)
-        ConversationHistory.add_user_message(continuation_builder.user_message)
       end
-
-      Girb::AutoContinue.reset!
     end
 
     private
@@ -123,6 +129,8 @@ module Girb
             accumulated_text << response.text
           end
 
+          debug_command_called = false
+
           response.function_calls.each do |function_call|
             tool_name = function_call[:name]
             tool_args = function_call[:args] || {}
@@ -145,6 +153,21 @@ module Girb
             if Girb.configuration.debug && result.is_a?(Hash) && result[:error]
               puts "[girb] Tool error: #{result[:error]}"
             end
+
+            # In debug mode, if run_debug_command was called, we need to exit
+            # the tool loop so the debugger can execute the pending commands
+            if @debug_mode && tool_name == "run_debug_command"
+              debug_command_called = true
+            end
+          end
+
+          # Exit tool loop if debug command was called - let debugger take over
+          if debug_command_called
+            # Save accumulated text and pending tool calls as assistant message
+            text = accumulated_text.any? ? accumulated_text.join("\n") : ""
+            ConversationHistory.add_assistant_message(text)
+            puts text unless text.empty?
+            break
           end
         else
           # Text response
