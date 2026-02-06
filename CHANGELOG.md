@@ -30,6 +30,7 @@
 - Exclude rubygems from exception capture (false LoadError during gem activation)
 - Fix `binding.girb` Ctrl+Space keybinding registration
 - Fix `binding.girb` not loading `.girbrc` (provider configuration missing)
+- Fix `binding.girb` to properly pass binding context (debug commands now work on user's script)
 
 ## [0.2.0] - 2026-02-05
 
