@@ -148,12 +148,52 @@ module Girb
       commands.each do |cmd|
         puts "[girb] Executing: #{cmd}"
         begin
-          # Execute the command through IRB's normal evaluation
-          # Debug commands like 'next', 'step' will be handled by IRB's built-in debug integration
-          evaluate_expression(cmd, 0)
+          execute_irb_command(cmd)
         rescue StandardError => e
           puts "[girb] Command error: #{e.message}"
         end
+      end
+    end
+
+    def execute_irb_command(cmd)
+      # Parse command and arguments
+      parts = cmd.strip.split(/\s+/, 2)
+      command_name = parts[0]
+      arg = parts[1] || ""
+
+      # Map command names to IRB command classes
+      command_class = find_irb_command_class(command_name)
+
+      if command_class
+        command_class.execute(self, arg)
+      else
+        # Fall back to evaluating as Ruby code
+        evaluate_expression(cmd, 0)
+      end
+    end
+
+    def find_irb_command_class(name)
+      # Debug-related command mappings
+      command_map = {
+        "next" => "Next", "n" => "Next",
+        "step" => "Step", "s" => "Step",
+        "continue" => "Continue", "c" => "Continue",
+        "finish" => "Finish",
+        "break" => "Break",
+        "delete" => "Delete",
+        "backtrace" => "Backtrace", "bt" => "Backtrace",
+        "info" => "Info",
+        "catch" => "Catch",
+        "debug" => "Debug"
+      }
+
+      class_name = command_map[name.downcase]
+      return nil unless class_name
+
+      begin
+        IRB::Command.const_get(class_name)
+      rescue NameError
+        nil
       end
     end
   end
