@@ -8,6 +8,10 @@ require_relative "session_persistence"
 
 module Girb
   module DebugIntegration
+    # Define at module level so it's accessible as Girb::DebugIntegration::GIRB_DIR
+    # Points to lib directory, not gem root, so user's files aren't filtered
+    GIRB_DIR = File.expand_path('..', __dir__)
+
     @ai_triggered = false
     @interrupted = false
     @session_started = false
@@ -60,8 +64,6 @@ module Girb
       def save_session!
         SessionPersistence.save_session if @session_started
       end
-
-      GIRB_DIR = File.expand_path('../..', __dir__)
 
       def setup
         return unless defined?(DEBUGGER__::SESSION)
@@ -135,6 +137,17 @@ module Girb
       MAX_AUTO_CONTINUE = 20
 
       def wait_command
+        # First, check for any pending commands (e.g., injected qq commands from IRB mode transition)
+        # Process these before entering auto_continue or waiting for user input
+        pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
+        if pending_cmds.any?
+          pending_cmds.each do |cmd|
+            result = process_command(cmd)
+            return result unless result == :retry
+          end
+          return :retry
+        end
+
         if Girb::DebugIntegration.auto_continue?
           @girb_auto_continue_count ||= 0
           @girb_auto_continue_count += 1
@@ -187,9 +200,9 @@ module Girb
             return :retry
           end
 
-          pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
-          if pending_cmds.any?
-            pending_cmds.each do |cmd|
+          more_cmds = Girb::DebugIntegration.take_pending_debug_commands
+          if more_cmds.any?
+            more_cmds.each do |cmd|
               result = process_command(cmd)
               return result unless result == :retry
             end
@@ -280,7 +293,10 @@ module Girb
         context = Girb::DebugContextBuilder.new(current_binding).build
         client = Girb::AiClient.new
         continuation = "(auto-continue: The debug command has been executed. Analyze the new state and continue your task.)"
-        client.ask(continuation, context, binding: current_binding, debug_mode: true)
+        # Disable Ruby's Timeout during API call to avoid deadlock with debug gem's threading
+        with_timeout_disabled do
+          client.ask(continuation, context, binding: current_binding, debug_mode: true)
+        end
       rescue StandardError => e
         @ui.puts "[girb] Auto-continue error: #{e.message}"
         Girb::DebugIntegration.auto_continue = false
@@ -299,12 +315,29 @@ module Girb
 
         context = Girb::DebugContextBuilder.new(current_binding).build
         client = Girb::AiClient.new
-        client.ask(question, context, binding: current_binding, debug_mode: true)
+        # Disable Ruby's Timeout during API call to avoid deadlock with debug gem's threading
+        with_timeout_disabled do
+          client.ask(question, context, binding: current_binding, debug_mode: true)
+        end
       rescue Girb::ConfigurationError => e
         puts "[girb] #{e.message}"
       rescue StandardError => e
         puts "[girb] Error: #{e.message}"
         puts e.backtrace.first(3).join("\n") if Girb.configuration.debug
+      end
+
+      # Temporarily disable Ruby's Timeout module to avoid deadlock with debug gem
+      # The underlying socket has its own timeout, so this is safe
+      def with_timeout_disabled
+        return yield unless defined?(Timeout)
+
+        original_timeout = Timeout.method(:timeout)
+        Timeout.define_singleton_method(:timeout) do |_sec, _klass = nil, _message = nil, &block|
+          block.call
+        end
+        yield
+      ensure
+        Timeout.define_singleton_method(:timeout, original_timeout) if original_timeout
       end
 
       def handle_ai_turn_limit_reached
@@ -317,7 +350,9 @@ module Girb
                         "Summarize your progress so far and tell the user what was accomplished. " \
                         "If the task is not complete, explain what remains and instruct the user " \
                         "to continue with a follow-up request.)"
-        client.ask(limit_message, context, binding: current_binding, debug_mode: true)
+        with_timeout_disabled do
+          client.ask(limit_message, context, binding: current_binding, debug_mode: true)
+        end
       rescue StandardError => e
         puts "[girb] Auto-continue limit reached (#{MAX_AUTO_CONTINUE})"
         puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
@@ -333,7 +368,9 @@ module Girb
         interrupt_message = "(System: User interrupted with Ctrl+C. " \
                             "Briefly summarize your progress so far. " \
                             "Tell the user where you stopped and how to continue if needed.)"
-        client.ask(interrupt_message, context, binding: current_binding, debug_mode: true)
+        with_timeout_disabled do
+          client.ask(interrupt_message, context, binding: current_binding, debug_mode: true)
+        end
       rescue StandardError => e
         puts "[girb] Error summarizing: #{e.message}" if Girb.configuration.debug
       end

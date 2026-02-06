@@ -35,6 +35,7 @@ module Girb
       else
         auto_continue_count = 0
         original_int_handler = setup_interrupt_handler
+        @debug_command_queued = false
 
         begin
           loop do
@@ -46,6 +47,12 @@ module Girb
             end
 
             process_with_tools(tools)
+
+            # If a debug command was queued, exit immediately
+            # The command needs to be executed by IRB first, then DebugIntegration handles auto-continue
+            if @debug_command_queued
+              break
+            end
 
             # Check for interrupt after API call (Ctrl+C during request)
             if Girb::AutoContinue.interrupted?
@@ -73,7 +80,11 @@ module Girb
           end
         ensure
           restore_interrupt_handler(original_int_handler)
-          Girb::AutoContinue.reset!
+          # Only reset AutoContinue if no debug command was queued
+          # (it will be transferred to DebugIntegration in IrbDebugHook)
+          unless @debug_command_queued
+            Girb::AutoContinue.reset!
+          end
           Girb::AutoContinue.clear_interrupt!
         end
       end
@@ -196,10 +207,13 @@ module Girb
               puts "[girb] Tool error: #{result[:error]}"
             end
 
-            # In debug mode, if run_debug_command was called, we need to exit
-            # the tool loop so the debugger can execute the pending commands
-            if @debug_mode && tool_name == "run_debug_command"
+            # If run_debug_command was called, we need to exit the tool loop
+            # so the debugger/IRB can execute the pending commands
+            if tool_name == "run_debug_command"
               debug_command_called = true
+              # In IRB mode, mark that we've queued a debug command
+              # This will prevent the auto-continue loop from continuing
+              @debug_command_queued = true unless @debug_mode
             end
           end
 

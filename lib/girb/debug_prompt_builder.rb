@@ -42,17 +42,31 @@ module Girb
       - Instance variables: `@x_values = []` then `@x_values << x`
       - Global variables: `$x_values = []` then `$x_values << x`
 
-      Example for tracking a variable's history efficiently:
-      1. `evaluate_code("$tracked = []")`
-      2. Use a "silent" breakpoint that records but doesn't stop:
-         `break file.rb:11 if: ($tracked << x; false)`
-         This appends x to $tracked and returns false, so execution continues without stopping.
-      3. Set a normal breakpoint at the END of the script to see results:
-         `break file.rb:14`
-      4. `continue` to run through all iterations
-      5. At the final breakpoint: `evaluate_code("$tracked")` to see all values
+      ## Efficiency: Prefer Conditional Breakpoints for Loops
+      When tracking variables through many iterations (loops, recursion), avoid repeated `next`/`step`
+      commands. Each step requires an API call, which is slow. Use conditional breakpoints instead:
 
-      This approach is much more efficient than stopping at every iteration!
+      **Efficient approach for loops with many iterations:**
+      1. `evaluate_code("$tracked = []")` - initialize tracking array
+      2. Use a conditional breakpoint that records AND stops on condition:
+         `break file.rb:10 if: ($tracked << x; x == 1)`
+         This appends x to $tracked on EVERY hit, but only stops when x == 1.
+      3. `continue` - run through all iterations at full speed
+      4. When stopped (or at end): `evaluate_code("$tracked")` to see all collected values
+
+      This completes in 2-3 API turns instead of many turns with repeated stepping.
+
+      **When to use repeated stepping (next/step):**
+      - Understanding complex logic flow (few lines)
+      - Checking which branch is taken
+      - Loops with only 2-3 iterations
+      - User explicitly wants to see execution step by step
+
+      **When to use conditional breakpoints:**
+      - Loops with many iterations (5+)
+      - "Track variable X until condition Y" requests
+      - "Find when X becomes Y" requests
+      - Collecting history of values
 
       ## CRITICAL: Executing Debugger Commands
       When the user asks you to perform a debugging action (e.g., "go to the next line", "step into",

@@ -6,6 +6,7 @@ require_relative "exception_capture"
 require_relative "context_builder"
 require_relative "session_history"
 require_relative "session_persistence"
+require_relative "auto_continue"
 require_relative "ai_client"
 
 module Girb
@@ -17,6 +18,25 @@ module Girb
         # DebugIntegrationを動的に読み込む
         require_relative "debug_integration" unless defined?(Girb::DebugIntegration)
         Girb::DebugIntegration.setup_if_needed
+
+        # Instead of using auto_continue (which causes deadlocks with API calls),
+        # inject a qq command to continue the conversation through normal command flow
+        if defined?(Girb::AutoContinue) && Girb::AutoContinue.active?
+          Girb::AutoContinue.reset!
+          # Include original user question so AI remembers the task
+          original_question = Girb::IrbIntegration.pending_user_question
+          Girb::IrbIntegration.pending_user_question = nil
+          if original_question
+            continuation = "(auto-continue: デバッグモードに移行しました。最初のデバッグコマンドは既に実行されました。" \
+                           "同じコマンドを再度発行しないでください。\n" \
+                           "元の指示: 「#{original_question}」\n" \
+                           "次のステップに進んでください。例: continueで実行を継続、または結果を確認。)"
+          else
+            continuation = "(auto-continue: デバッグモードに移行しました。最初のデバッグコマンドは既に実行されました。" \
+                           "次のステップに進んでください。)"
+          end
+          Girb::DebugIntegration.add_pending_debug_command("qq #{continuation}")
+        end
       end
       result
     end
@@ -34,8 +54,14 @@ module Girb
     @session_started = false
     @exit_hook_installed = false
     @pending_irb_commands = []
+    @pending_input_commands = []
+    @auto_continue = false
+
+    DEBUG_COMMANDS = %w[next n step s continue c finish break delete backtrace bt info catch debug].freeze
 
     class << self
+      attr_accessor :auto_continue
+
       def pending_irb_commands
         @pending_irb_commands ||= []
       end
@@ -49,6 +75,36 @@ module Girb
         @pending_irb_commands = []
         cmds
       end
+
+      # Commands to be injected into IRB's input stream
+      def pending_input_commands
+        @pending_input_commands ||= []
+      end
+
+      def add_pending_input_command(cmd)
+        pending_input_commands << cmd
+      end
+
+      def take_next_input_command
+        @pending_input_commands ||= []
+        @pending_input_commands.shift
+      end
+
+      def has_pending_input?
+        @pending_input_commands && !@pending_input_commands.empty?
+      end
+
+      def debug_command?(cmd)
+        name = cmd.strip.split(/\s+/, 2).first&.downcase
+        DEBUG_COMMANDS.include?(name)
+      end
+
+      def auto_continue?
+        @auto_continue
+      end
+
+      # Store the original user question for continuation after debug mode transition
+      attr_accessor :pending_user_question
 
       def session_started?
         @session_started
@@ -85,6 +141,9 @@ module Girb
       # Ctrl+Space キーバインドをインストール
       install_ai_keybinding
 
+      # readmultiline パッチをインストール（コマンド注入用）
+      install_readmultiline_patch
+
       # セッション永続化が有効なら開始
       start_session! if SessionPersistence.enabled?
 
@@ -98,6 +157,13 @@ module Girb
 
       IRB::Debug.singleton_class.prepend(Girb::IrbDebugHook)
       @debug_hook_installed = true
+    end
+
+    def self.install_readmultiline_patch
+      return if @readmultiline_patch_installed
+
+      IRB::Irb.prepend(ReadmultilinePatch)
+      @readmultiline_patch_installed = true
     end
 
     def self.setup_exit_hook
@@ -154,6 +220,9 @@ module Girb
     private
 
     def ask_ai(question, line_no)
+      # Store the question for continuation after debug mode transition
+      Girb::IrbIntegration.pending_user_question = question
+
       context = ContextBuilder.new(workspace.binding, self).build
       client = AiClient.new
       client.ask(question, context, binding: workspace.binding, line_no: line_no, irb_context: self)
@@ -169,11 +238,19 @@ module Girb
       return if commands.empty?
 
       commands.each do |cmd|
-        puts "[girb] Executing: #{cmd}"
-        begin
-          execute_irb_command(cmd)
-        rescue StandardError => e
-          puts "[girb] Command error: #{e.message}"
+        if Girb::IrbIntegration.debug_command?(cmd)
+          # Debug commands need to be processed at IRB's top level
+          # Queue them for injection via readmultiline patch
+          puts "[girb] Queuing debug command: #{cmd}"
+          Girb::IrbIntegration.add_pending_input_command(cmd)
+        else
+          # Non-debug commands can be executed directly
+          puts "[girb] Executing: #{cmd}"
+          begin
+            execute_irb_command(cmd)
+          rescue StandardError => e
+            puts "[girb] Command error: #{e.message}"
+          end
         end
       end
     end
@@ -218,6 +295,25 @@ module Girb
       rescue NameError
         nil
       end
+    end
+  end
+
+  # Patch to inject pending commands into IRB's input stream
+  # This ensures debug commands are processed at the top level of IRB's loop
+  module ReadmultilinePatch
+    def readmultiline
+      # Check for pending commands from girb AI
+      if (cmd = Girb::IrbIntegration.take_next_input_command)
+        puts "[girb] Injecting command: #{cmd}"
+        # Return command with newline so it's processed as complete input
+        return cmd.end_with?("\n") ? cmd : "#{cmd}\n"
+      end
+
+      result = super
+
+      # After debug command executes and we transition to debug mode,
+      # the debug_integration auto_continue mechanism takes over
+      result
     end
   end
 end

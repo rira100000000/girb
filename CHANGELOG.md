@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.0] - 2026-02-06
+## [0.3.0] - 2026-02-07
 
 ### Added
 
@@ -15,6 +15,10 @@
 - **`run_debug_command` tool for IRB mode**
   - AI can now execute debug commands (next, step, continue, etc.) in `binding.girb`
   - Enables autonomous step-by-step debugging in IRB sessions
+- **Seamless `binding.girb` to debug mode transition**
+  - When AI executes debug commands (next, step, etc.) in `binding.girb`, automatically transitions to debug mode
+  - Original user instruction is preserved and passed to debug mode for continuous execution
+  - AI can autonomously step through code with `auto_continue: true`
 
 ### Changed
 
@@ -23,6 +27,9 @@
   - Breakpoint mode (`binding.girb`): Focus on actual code in file
   - Interactive mode (`girb` command): Focus on session history
   - Rails mode (`rails console`): Rails-specific guidance
+- Debug commands in IRB mode are now injected via `ReadmultilinePatch` to ensure proper execution at IRB's top level
+- Improved debug prompt to prefer conditional breakpoints for loops (efficient) over repeated stepping (slow)
+- Continuation message now warns AI not to re-execute already-run commands
 
 ### Fixed
 
@@ -31,6 +38,8 @@
 - Fix `binding.girb` Ctrl+Space keybinding registration
 - Fix `binding.girb` not loading `.girbrc` (provider configuration missing)
 - Fix `binding.girb` to properly pass binding context (debug commands now work on user's script)
+- Fix deadlock when making API calls in debug mode by temporarily disabling Ruby's `Timeout` module
+- Fix `GIRB_DIR` constant scope for proper frame filtering in debugger
 
 ## [0.2.0] - 2026-02-05
 

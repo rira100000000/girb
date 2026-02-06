@@ -34,8 +34,9 @@ module Girb
         end
 
         def available?
-          # Available in IRB mode (not debug mode)
-          defined?(IRB) && !defined?(DEBUGGER__)
+          # Available in IRB mode (not in active debug session)
+          # DEBUGGER__::SESSION indicates an active debug session
+          defined?(IRB) && !defined?(DEBUGGER__::SESSION)
         end
       end
 
