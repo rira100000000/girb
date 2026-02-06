@@ -63,11 +63,19 @@ module Girb
 
       def setup
         return unless defined?(DEBUGGER__::SESSION)
+        return if @setup_done
 
         register_ai_command
         register_debug_tools
         setup_keybinding
+        @setup_done = true
         puts "[girb] Debug AI assistant loaded. Use 'qq <question>' or Ctrl+Space."
+      end
+
+      # IRBからdebugモードに入った時に呼ばれる
+      def setup_if_needed
+        return if @setup_done
+        setup
       end
 
       private

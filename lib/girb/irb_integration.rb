@@ -9,6 +9,16 @@ require_relative "session_persistence"
 require_relative "ai_client"
 
 module Girb
+  # IRB::Debug.setupをフックして、debug gem初期化後にgirb統合をセットアップ
+  module IrbDebugHook
+    def setup(irb)
+      result = super
+      if result && defined?(DEBUGGER__::SESSION)
+        Girb::DebugIntegration.setup_if_needed
+      end
+      result
+    end
+  end
   # AI送信フラグ（スレッドローカル）
   def self.ai_send_pending?
     Thread.current[:girb_ai_send_pending]
@@ -75,6 +85,17 @@ module Girb
 
       # セッション永続化が有効なら開始
       start_session! if SessionPersistence.enabled?
+
+      # IRB::Debugをフックして、debug開始時にgirb統合をセットアップ
+      install_debug_hook
+    end
+
+    def self.install_debug_hook
+      return if @debug_hook_installed
+      return unless defined?(IRB::Debug)
+
+      IRB::Debug.singleton_class.prepend(Girb::IrbDebugHook)
+      @debug_hook_installed = true
     end
 
     def self.setup_exit_hook
