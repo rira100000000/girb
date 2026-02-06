@@ -35,6 +35,8 @@ module Girb
           next if tp.path&.include?("readline")
           next if tp.path&.include?("rdoc")
           next if tp.path&.include?("/ri/")
+          # forwardableは内部でSyntaxErrorを意図的に発生させてrescueする
+          next if tp.path&.include?("forwardable")
           next if tp.raised_exception.is_a?(SystemExit)
           next if tp.raised_exception.is_a?(Interrupt)
           # ErrorHighlight内部の例外を除外
