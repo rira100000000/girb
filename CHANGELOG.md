@@ -12,6 +12,9 @@
   - Works in both IRB and debug modes
 - **Persisted conversations in `get_session_history` tool**
   - Access previous session's AI conversations
+- **`run_debug_command` tool for IRB mode**
+  - AI can now execute debug commands (next, step, continue, etc.) in `binding.girb`
+  - Enables autonomous step-by-step debugging in IRB sessions
 
 ### Changed
 
