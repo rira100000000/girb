@@ -55,6 +55,9 @@ class Binding
     require "irb"
     Girb.setup! unless defined?(IRB::Command::Qq)
 
+    # .girbrcを読み込む（プロバイダー設定）
+    Girb::GirbrcLoader.load_girbrc unless Girb.configuration&.provider
+
     # キーバインドを再設定（IRBセッション開始前に確実に設定）
     Girb::IrbIntegration.install_ai_keybinding
 
