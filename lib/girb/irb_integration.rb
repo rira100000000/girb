@@ -14,6 +14,8 @@ module Girb
     def setup(irb)
       result = super
       if result && defined?(DEBUGGER__::SESSION)
+        # DebugIntegrationを動的に読み込む
+        require_relative "debug_integration" unless defined?(Girb::DebugIntegration)
         Girb::DebugIntegration.setup_if_needed
       end
       result
