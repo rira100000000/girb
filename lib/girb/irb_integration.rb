@@ -5,6 +5,7 @@ require "irb/command"
 require_relative "exception_capture"
 require_relative "context_builder"
 require_relative "session_history"
+require_relative "session_persistence"
 require_relative "ai_client"
 
 module Girb
@@ -18,6 +19,32 @@ module Girb
   end
 
   module IrbIntegration
+    @session_started = false
+    @exit_hook_installed = false
+
+    class << self
+      def session_started?
+        @session_started
+      end
+
+      def start_session!
+        return if @session_started
+        return unless SessionPersistence.enabled?
+
+        SessionPersistence.start_session
+        @session_started = true
+        setup_exit_hook unless @exit_hook_installed
+      end
+
+      def save_session!
+        return unless @session_started
+        SessionPersistence.save_session
+      rescue => e
+        # exit時のエラーは静かに無視
+        STDERR.puts "[girb] Warning: Failed to save session: #{e.message}" if ENV["GIRB_DEBUG"]
+      end
+    end
+
     def self.setup
       # コマンドを登録
       require_relative "../irb/command/qq"
@@ -30,6 +57,18 @@ module Girb
 
       # Ctrl+Space キーバインドをインストール
       install_ai_keybinding
+
+      # セッション永続化が有効なら開始
+      start_session! if SessionPersistence.enabled?
+    end
+
+    def self.setup_exit_hook
+      return if @exit_hook_installed
+      @exit_hook_installed = true
+
+      at_exit do
+        Girb::IrbIntegration.save_session!
+      end
     end
 
     def self.install_eval_hook

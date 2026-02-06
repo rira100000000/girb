@@ -17,7 +17,7 @@ module Girb
   class ApiError < Error; end
 
   class << self
-    attr_accessor :configuration
+    attr_accessor :configuration, :debug_session
 
     def configure
       self.configuration ||= Configuration.new
@@ -55,11 +55,10 @@ class Binding
     require "irb"
     Girb.setup! unless defined?(IRB::Command::Qq)
 
-    # IRB.start with this binding
-    IRB.setup(source_location[0], argv: [])
-    workspace = IRB::WorkSpace.new(self)
-    irb = IRB::Irb.new(workspace)
-    IRB.conf[:MAIN_CONTEXT] = irb.context
-    irb.run(IRB.conf)
+    # キーバインドを再設定（IRBセッション開始前に確実に設定）
+    Girb::IrbIntegration.install_ai_keybinding
+
+    # 標準のbinding.irbを利用
+    irb
   end
 end

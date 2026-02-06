@@ -4,11 +4,13 @@ require "debug"
 require_relative "debug_context_builder"
 require_relative "debug_prompt_builder"
 require_relative "debug_session_history"
+require_relative "session_persistence"
 
 module Girb
   module DebugIntegration
     @ai_triggered = false
     @interrupted = false
+    @session_started = false
 
     class << self
       attr_accessor :ai_triggered, :auto_continue, :interrupted, :api_thread
@@ -43,6 +45,22 @@ module Girb
         @interrupted = false
       end
 
+      def session_started?
+        @session_started
+      end
+
+      def start_session!
+        return if @session_started
+
+        SessionPersistence.start_session
+        @session_started = true
+        setup_exit_hook
+      end
+
+      def save_session!
+        SessionPersistence.save_session if @session_started
+      end
+
       def setup
         return unless defined?(DEBUGGER__::SESSION)
 
@@ -74,6 +92,12 @@ module Girb
         end)
 
         Reline.core.config.add_default_key_binding_by_keymap(:emacs, [0], :girb_debug_ai_prefix)
+      end
+
+      def setup_exit_hook
+        at_exit do
+          Girb::DebugIntegration.save_session!
+        end
       end
     end
 
@@ -174,6 +198,12 @@ module Girb
           question = line.sub(/^qq\s+/, "").strip
           return :retry if question.empty?
 
+          # セッション管理コマンド
+          if question.start_with?("session ")
+            handle_session_command(question.sub(/^session\s+/, ""))
+            return :retry
+          end
+
           Girb::DebugSessionHistory.record_ai_question(question)
           handle_ai_question(question)
           pending_cmds = Girb::DebugIntegration.take_pending_debug_commands
@@ -234,6 +264,9 @@ module Girb
           return
         end
 
+        # 初回のAI質問時にセッションを開始
+        Girb::DebugIntegration.start_session!
+
         context = Girb::DebugContextBuilder.new(current_binding).build
         client = Girb::AiClient.new
         client.ask(question, context, binding: current_binding, debug_mode: true)
@@ -291,6 +324,34 @@ module Girb
           @original_int_handler = nil
         else
           trap("INT", "DEFAULT")
+        end
+      end
+
+      def handle_session_command(cmd)
+        case cmd.strip
+        when "clear"
+          Girb::SessionPersistence.clear_session
+        when "list"
+          sessions = Girb::SessionPersistence.list_sessions
+          if sessions.empty?
+            puts "[girb] No saved sessions"
+          else
+            puts "[girb] Saved sessions:"
+            sessions.each do |s|
+              puts "  - #{s[:id]} (#{s[:message_count]} messages, saved: #{s[:saved_at]})"
+            end
+          end
+        when "status"
+          if Girb::SessionPersistence.current_session_id
+            puts "[girb] Current session: #{Girb::SessionPersistence.current_session_id}"
+          elsif Girb.debug_session
+            puts "[girb] Session configured: #{Girb.debug_session} (not started)"
+          else
+            puts "[girb] No session configured (use Girb.debug_session = 'name' to enable)"
+          end
+        else
+          puts "[girb] Unknown session command: #{cmd}"
+          puts "[girb] Available: clear, list, status"
         end
       end
     end

@@ -2,6 +2,8 @@
 
 require_relative "base"
 require_relative "../session_history"
+require_relative "../conversation_history"
+require_relative "../session_persistence"
 
 module Girb
   module Tools
@@ -12,7 +14,8 @@ module Girb
         end
 
         def description
-          "Get IRB session history. Can retrieve specific lines, line ranges, method definitions, AI conversation details, or full history."
+          "Get IRB session history including AI conversations from previous sessions (if persisted). " \
+          "Can retrieve specific lines, line ranges, method definitions, AI conversation details, or full history."
         end
 
         def available?
@@ -151,21 +154,51 @@ module Girb
       end
 
       def list_ai_conversations
-        conversations = SessionHistory.ai_conversations
-        if conversations.any?
+        all_conversations = []
+
+        # 永続化されたセッションからの会話
+        persisted = get_persisted_conversations
+        all_conversations.concat(persisted)
+
+        # 現在のセッションの会話
+        current = SessionHistory.ai_conversations.map do |c|
           {
-            count: conversations.size,
-            conversations: conversations.map do |c|
+            line: c[:line_no],
+            question: c[:question],
+            response: c[:response] || "",
+            source: "current_session"
+          }
+        end
+        all_conversations.concat(current)
+
+        if all_conversations.any?
+          {
+            count: all_conversations.size,
+            conversations: all_conversations.map do |c|
+              response = c[:response] || ""
               {
-                line: c[:line_no],
+                line: c[:line],
                 question: c[:question],
-                response_preview: c[:response][0, 200] + (c[:response].length > 200 ? "..." : "")
+                response_preview: response.length > 200 ? "#{response[0, 200]}..." : response,
+                source: c[:source] || "persisted"
               }
             end
           }
         else
-          { message: "No AI conversations in this session" }
+          { message: "No AI conversations in session history" }
         end
+      end
+
+      def get_persisted_conversations
+        conversations = []
+        ConversationHistory.messages.each do |msg|
+          if msg.role == "user"
+            conversations << { question: msg.content, source: "persisted" }
+          elsif msg.role == "model" && conversations.last && !conversations.last[:response]
+            conversations.last[:response] = msg.content
+          end
+        end
+        conversations
       end
 
       def get_ai_detail(line)

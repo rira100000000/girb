@@ -12,6 +12,14 @@ module IRB
         question = question.to_s.strip
         if question.empty?
           puts "[girb] Usage: qq \"your question here\""
+          puts "[girb]        qq session clear  - Clear current session"
+          puts "[girb]        qq session list   - List saved sessions"
+          return
+        end
+
+        # セッション管理コマンド
+        if question.start_with?("session ")
+          handle_session_command(question.sub(/^session\s+/, ""))
           return
         end
 
@@ -23,6 +31,9 @@ module IRB
           puts "[girb]   export GEMINI_API_KEY=your-key"
           return
         end
+
+        # セッションが有効なら開始
+        Girb::IrbIntegration.start_session! if Girb::SessionPersistence.enabled?
 
         current_binding = irb_context.workspace.binding
 
@@ -48,6 +59,36 @@ module IRB
       rescue StandardError => e
         puts "[girb] Error: #{e.message}"
         puts e.backtrace.first(5).join("\n") if Girb.configuration&.debug
+      end
+
+      private
+
+      def handle_session_command(cmd)
+        case cmd.strip
+        when "clear"
+          Girb::SessionPersistence.clear_session
+        when "list"
+          sessions = Girb::SessionPersistence.list_sessions
+          if sessions.empty?
+            puts "[girb] No saved sessions"
+          else
+            puts "[girb] Saved sessions:"
+            sessions.each do |s|
+              puts "  - #{s[:id]} (#{s[:message_count]} messages, saved: #{s[:saved_at]})"
+            end
+          end
+        when "status"
+          if Girb::SessionPersistence.current_session_id
+            puts "[girb] Current session: #{Girb::SessionPersistence.current_session_id}"
+          elsif Girb.debug_session
+            puts "[girb] Session configured: #{Girb.debug_session} (not started)"
+          else
+            puts "[girb] No session configured (use Girb.debug_session = 'name' to enable)"
+          end
+        else
+          puts "[girb] Unknown session command: #{cmd}"
+          puts "[girb] Available: clear, list, status"
+        end
       end
     end
   end
