@@ -16,6 +16,10 @@
 ### Changed
 
 - Debug mode AI command changed from `ai` to `qq` (consistent with IRB mode)
+- Separate prompts for different modes (auto-detected):
+  - Breakpoint mode (`binding.girb`): Focus on actual code in file
+  - Interactive mode (`girb` command): Focus on session history
+  - Rails mode (`rails console`): Rails-specific guidance
 
 ### Fixed
 
