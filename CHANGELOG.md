@@ -1,11 +1,33 @@
 # Changelog
 
+## [0.3.0] - 2026-02-06
+
+### Added
+
+- **Session persistence**: Persist AI conversation history across sessions
+  - Enable with `Girb.debug_session = "session_name"`
+  - `qq session status/list/clear` commands for session management
+  - Sessions saved to `.girb/sessions/<session_id>.json`
+  - Auto-cleanup of sessions inactive for 7+ days
+  - Works in both IRB and debug modes
+- **Persisted conversations in `get_session_history` tool**
+  - Access previous session's AI conversations
+
+### Changed
+
+- Debug mode AI command changed from `ai` to `qq` (consistent with IRB mode)
+
+### Fixed
+
+- Exclude forwardable from exception capture (false SyntaxError detection)
+- Fix `binding.girb` Ctrl+Space keybinding registration
+
 ## [0.2.0] - 2026-02-05
 
 ### Added
 
 - **Debug gem (rdbg) integration**: AI assistant for step-through debugging
-  - `ai <question>` command in debugger
+  - `qq <question>` command in debugger
   - Ctrl+Space to send input to AI
   - Auto-routing of non-ASCII (Japanese) input to AI
   - `run_debug_command` tool for AI to execute debugger commands (step, next, continue, break, etc.)
