@@ -37,6 +37,8 @@ module Girb
           next if tp.path&.include?("/ri/")
           # forwardableは内部でSyntaxErrorを意図的に発生させてrescueする
           next if tp.path&.include?("forwardable")
+          # rubygemsのrequireは最初にLoadErrorを発生させてからgemをアクティベートする
+          next if tp.path&.include?("rubygems")
           next if tp.raised_exception.is_a?(SystemExit)
           next if tp.raised_exception.is_a?(Interrupt)
           # ErrorHighlight内部の例外を除外
