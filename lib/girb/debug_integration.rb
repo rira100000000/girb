@@ -61,6 +61,8 @@ module Girb
         SessionPersistence.save_session if @session_started
       end
 
+      GIRB_DIR = File.expand_path('../..', __dir__)
+
       def setup
         return unless defined?(DEBUGGER__::SESSION)
         return if @setup_done
@@ -68,8 +70,28 @@ module Girb
         register_ai_command
         register_debug_tools
         setup_keybinding
+        patch_debugger_frame_filter
         @setup_done = true
         puts "[girb] Debug AI assistant loaded. Use 'qq <question>' or Ctrl+Space."
+      end
+
+      def patch_debugger_frame_filter
+        return unless defined?(DEBUGGER__)
+        return if @frame_filter_patched
+
+        # girbのフレームもdebuggerのスタックトレースから除外
+        if DEBUGGER__.respond_to?(:capture_frames)
+          original_method = DEBUGGER__.method(:capture_frames)
+          DEBUGGER__.define_singleton_method(:capture_frames) do |*args|
+            frames = original_method.call(*args)
+            frames.reject! do |frame|
+              frame.realpath&.start_with?(Girb::DebugIntegration::GIRB_DIR)
+            end
+            frames
+          end
+        end
+
+        @frame_filter_patched = true
       end
 
       # IRBからdebugモードに入った時に呼ばれる
