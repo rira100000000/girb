@@ -68,6 +68,19 @@ module Girb
       - Guessing what the code might do
       - Writing your own version of the code
       - Asking the user what the code is when you can read the file
+
+      ### Debug Commands (use run_debug_command tool)
+      IRB integrates with debug gem. Use `run_debug_command` tool to execute:
+      - `next` / `n`: Step over to next line
+      - `step` / `s`: Step into method calls
+      - `continue` / `c`: Continue execution
+      - `finish`: Run until current method returns
+      - `break <file>:<line>`: Set a breakpoint
+      - `backtrace` / `bt`: Show call stack
+      - `info`: Show local variables
+
+      When the user asks for step-by-step execution, use `run_debug_command` with `auto_continue: true`
+      to step through the code and be re-invoked to see the results.
     PROMPT
 
     # Prompt specific to interactive IRB mode (girb command)

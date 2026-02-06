@@ -21,8 +21,23 @@ module Girb
   module IrbIntegration
     @session_started = false
     @exit_hook_installed = false
+    @pending_irb_commands = []
 
     class << self
+      def pending_irb_commands
+        @pending_irb_commands ||= []
+      end
+
+      def add_pending_irb_command(cmd)
+        pending_irb_commands << cmd
+      end
+
+      def take_pending_irb_commands
+        cmds = @pending_irb_commands || []
+        @pending_irb_commands = []
+        cmds
+      end
+
       def session_started?
         @session_started
       end
@@ -119,8 +134,27 @@ module Girb
       context = ContextBuilder.new(workspace.binding, self).build
       client = AiClient.new
       client.ask(question, context, binding: workspace.binding, line_no: line_no, irb_context: self)
+
+      # Execute any pending IRB commands after AI response
+      execute_pending_commands
     rescue StandardError => e
       puts "[girb] Error: #{e.message}"
+    end
+
+    def execute_pending_commands
+      commands = Girb::IrbIntegration.take_pending_irb_commands
+      return if commands.empty?
+
+      commands.each do |cmd|
+        puts "[girb] Executing: #{cmd}"
+        begin
+          # Execute the command through IRB's normal evaluation
+          # Debug commands like 'next', 'step' will be handled by IRB's built-in debug integration
+          evaluate_expression(cmd, 0)
+        rescue StandardError => e
+          puts "[girb] Command error: #{e.message}"
+        end
+      end
     end
   end
 end

@@ -11,6 +11,7 @@ require_relative "tools/session_history_tool"
 require_relative "tools/debug_session_history_tool"
 require_relative "tools/environment_tools"
 require_relative "tools/continue_analysis"
+require_relative "tools/run_irb_debug_command"
 
 module Girb
   module Tools
@@ -18,7 +19,7 @@ module Girb
     SHARED_TOOLS = [InspectObject, GetSource, ListMethods, EvaluateCode, ReadFile, FindFile, GetCurrentDirectory].freeze
 
     # IRB-only tools
-    IRB_TOOLS = [SessionHistoryTool, ContinueAnalysis].freeze
+    IRB_TOOLS = [SessionHistoryTool, ContinueAnalysis, RunIrbDebugCommand].freeze
 
     # Debug-only tools (RunDebugCommand is registered separately in DebugIntegration)
     DEBUG_TOOLS = [DebugSessionHistoryTool].freeze
