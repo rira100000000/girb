@@ -64,8 +64,8 @@ export GEMINI_API_KEY="your-api-key"
 ```
 
 詳細な設定方法（Ollama、その他のプロバイダー、高度なオプション）は、プロバイダーgemのドキュメントを参照してください:
-- [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm)
-- [girb-gemini README](https://github.com/rira100000000/girb-gemini)
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm)
+- [girb-gemini](https://github.com/rira100000000/girb-gemini)
 
 ### .girbrcの作成
 
@@ -123,6 +123,47 @@ end
 | `GIRB_PROVIDER` | プロバイダーgem（例: `girb-ruby_llm`） |
 | `GIRB_MODEL` | モデル名（例: `gemini-2.5-flash`） |
 | `GIRB_DEBUG` | `1` でデバッグ出力有効化 |
+
+### セッション永続化（オプション）
+
+AIとの会話履歴をセッション間で保持できます。明示的にセッションIDを指定した場合のみ有効になります。
+
+#### 有効化
+
+`.girbrc` でセッションIDを設定:
+
+```ruby
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+
+# セッション永続化を有効化（オプション）
+Girb.debug_session = "my-project"
+```
+
+または、コード内で動的に設定:
+
+```ruby
+Girb.debug_session = "debug-user-auth"
+debugger  # このセッションの会話が保存される
+```
+
+#### セッション管理コマンド
+
+IRBまたはデバッグモードで使用:
+
+```
+qq session status  # 現在のセッション状態を表示
+qq session list    # 保存されたセッション一覧
+qq session clear   # 現在のセッションをクリア
+```
+
+#### 動作
+
+- セッションは `.girb/sessions/<session_id>.json` に保存
+- 7日以上アクセスのないセッションは自動削除
+- 同じセッションIDで再開すると、過去の会話を引き継ぎ
+- `get_session_history` ツールで過去の会話を参照可能
 
 ---
 

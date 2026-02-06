@@ -66,8 +66,8 @@ export GEMINI_API_KEY="your-api-key"
 ```
 
 For detailed setup instructions (Ollama, other providers, advanced options), see the provider gem documentation:
-- [girb-ruby_llm README](https://github.com/rira100000000/girb-ruby_llm)
-- [girb-gemini README](https://github.com/rira100000000/girb-gemini)
+- [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm)
+- [girb-gemini](https://github.com/rira100000000/girb-gemini)
 
 ### Create .girbrc
 
@@ -125,6 +125,47 @@ Used when provider is not configured in `.girbrc`:
 | `GIRB_PROVIDER` | Provider gem (e.g., `girb-ruby_llm`) |
 | `GIRB_MODEL` | Model name (e.g., `gemini-2.5-flash`) |
 | `GIRB_DEBUG` | Set to `1` for debug output |
+
+### Session Persistence (Optional)
+
+Persist AI conversation history across sessions. Only enabled when you explicitly set a session ID.
+
+#### Enable
+
+Set a session ID in `.girbrc`:
+
+```ruby
+Girb.configure do |c|
+  c.provider = Girb::Providers::RubyLlm.new(model: 'gemini-2.5-flash')
+end
+
+# Enable session persistence (optional)
+Girb.debug_session = "my-project"
+```
+
+Or set dynamically in code:
+
+```ruby
+Girb.debug_session = "debug-user-auth"
+debugger  # Conversations in this session will be saved
+```
+
+#### Session Management Commands
+
+Use in IRB or debug mode:
+
+```
+qq session status  # Show current session status
+qq session list    # List saved sessions
+qq session clear   # Clear current session
+```
+
+#### Behavior
+
+- Sessions are saved to `.girb/sessions/<session_id>.json`
+- Sessions inactive for 7+ days are automatically deleted
+- Resuming with the same session ID continues the previous conversation
+- Use `get_session_history` tool to reference past conversations
 
 ---
 
