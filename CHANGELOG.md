@@ -22,6 +22,7 @@
 - Exclude forwardable from exception capture (false SyntaxError detection)
 - Exclude rubygems from exception capture (false LoadError during gem activation)
 - Fix `binding.girb` Ctrl+Space keybinding registration
+- Fix `binding.girb` not loading `.girbrc` (provider configuration missing)
 
 ## [0.2.0] - 2026-02-05
 
