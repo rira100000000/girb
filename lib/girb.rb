@@ -51,7 +51,7 @@ end
 
 # binding.girb サポート
 class Binding
-  def girb
+  def girb(show_code: true)
     require "irb"
     Girb.setup! unless defined?(IRB::Command::Qq)
 
@@ -61,7 +61,14 @@ class Binding
     # キーバインドを再設定（IRBセッション開始前に確実に設定）
     Girb::IrbIntegration.install_ai_keybinding
 
-    # 標準のbinding.irbを利用
-    irb
+    # 標準のbinding.irbと同じ方法でIRBを起動
+    IRB.setup(source_location[0], argv: []) unless IRB.initialized?
+    workspace = IRB::WorkSpace.new(self)
+    STDOUT.print(workspace.code_around_binding) if show_code
+
+    binding_irb = IRB::Irb.new(workspace, from_binding: true)
+    binding_irb.context.irb_path = File.expand_path(source_location[0])
+    binding_irb.run(IRB.conf)
+    binding_irb.debug_break
   end
 end
