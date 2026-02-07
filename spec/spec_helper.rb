@@ -10,7 +10,7 @@ module Girb
   class ApiError < Error; end
 
   class << self
-    attr_accessor :configuration
+    attr_accessor :configuration, :debug_session
 
     def configure
       self.configuration ||= Configuration.new
@@ -28,6 +28,14 @@ require "girb/configuration"
 require "girb/exception_capture"
 require "girb/context_builder"
 require "girb/prompt_builder"
+require "girb/debug_prompt_builder"
+require "girb/debug_context_builder"
+require "girb/conversation_history"
+require "girb/auto_continue"
+require "girb/session_persistence"
+require "girb/debug_session_history"
+require "girb/providers/base"
+require "girb/ai_client"
 require "girb/tools"
 
 # binding.girb support for debugging in tests
@@ -64,6 +72,13 @@ RSpec.configure do |config|
 
   config.before(:each) do
     Girb.configuration = nil
+    Girb.debug_session = nil
     Girb::ExceptionCapture.clear
+    Girb::ConversationHistory.reset!
+    Girb::AutoContinue.reset!
+    Girb::AutoContinue.clear_interrupt!
+    Girb::DebugSessionHistory.reset!
+    Girb::SessionPersistence.current_session_id = nil
+    Girb::SessionHistory.reset!
   end
 end
