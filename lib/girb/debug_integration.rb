@@ -313,17 +313,37 @@ module Girb
         # 初回のAI質問時にセッションを開始
         Girb::DebugIntegration.start_session!
 
+        # Ctrl+Cでプロセスがクラッシュするのを防ぐ
+        # trapハンドラを設置し、SIGINTをフラグ設定のみに抑える
+        original_handler = trap("INT") do
+          Girb::DebugIntegration.interrupt!
+        end
+
         context = Girb::DebugContextBuilder.new(current_binding).build
         client = Girb::AiClient.new
         # Disable Ruby's Timeout during API call to avoid deadlock with debug gem's threading
         with_timeout_disabled do
           client.ask(question, context, binding: current_binding, debug_mode: true)
         end
+
+        # API呼び出し後にinterruptチェック
+        if Girb::DebugIntegration.interrupted?
+          Girb::DebugIntegration.clear_interrupt!
+          Girb::DebugIntegration.auto_continue = false
+          Girb::DebugIntegration.take_pending_debug_commands
+          puts "\n[girb] Interrupted by user (Ctrl+C)"
+        end
       rescue Girb::ConfigurationError => e
         puts "[girb] #{e.message}"
       rescue StandardError => e
         puts "[girb] Error: #{e.message}"
         puts e.backtrace.first(3).join("\n") if Girb.configuration.debug
+      ensure
+        if original_handler
+          trap("INT", original_handler)
+        else
+          trap("INT", "DEFAULT")
+        end
       end
 
       # Temporarily disable Ruby's Timeout module to avoid deadlock with debug gem

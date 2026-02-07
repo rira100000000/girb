@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] - 2026-02-07
+
+### Fixed
+
+- Fix process crash when pressing Ctrl+C during AI API call in debug mode
+  - SIGINT now sets interrupt flag instead of propagating to main thread's `Queue.pop`
+  - Pending debug commands are properly discarded on interrupt
+  - Original SIGINT handler is always restored via `ensure` block
+
 ## [0.3.0] - 2026-02-07
 
 ### Added

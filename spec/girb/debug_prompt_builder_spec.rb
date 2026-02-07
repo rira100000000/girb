@@ -38,6 +38,24 @@ RSpec.describe Girb::DebugPromptBuilder do
       expect(subject.system_prompt).to include("auto_continue")
     end
 
+    it "includes breakpoint line placement rules for block bodies" do
+      prompt = subject.system_prompt
+      expect(prompt).to include("NEVER place a breakpoint on a block header line")
+      expect(prompt).to include("ALWAYS place breakpoints on a line INSIDE the block body")
+    end
+
+    it "includes evaluate_code alternative for tracking scenarios" do
+      prompt = subject.system_prompt
+      expect(prompt).to include("evaluate_code for pure tracking scenarios")
+      expect(prompt).to include("catch(:girb_stop)")
+    end
+
+    it "requires continue immediately after setting breakpoint" do
+      prompt = subject.system_prompt
+      expect(prompt).to include("MUST continue immediately after setting the breakpoint")
+      expect(prompt).to include("do NOT stop and wait for user input")
+    end
+
     context "with custom prompt" do
       before do
         Girb.configure do |c|

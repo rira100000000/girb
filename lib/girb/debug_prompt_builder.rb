@@ -46,15 +46,56 @@ module Girb
       When tracking variables through many iterations (loops, recursion), avoid repeated `next`/`step`
       commands. Each step requires an API call, which is slow. Use conditional breakpoints instead:
 
-      **Efficient approach for loops with many iterations:**
-      1. `evaluate_code("$tracked = []")` - initialize tracking array
-      2. Use a conditional breakpoint that records AND stops on condition:
-         `break file.rb:10 if: ($tracked << x; x == 1)`
-         This appends x to $tracked on EVERY hit, but only stops when x == 1.
-      3. `continue` - run through all iterations at full speed
-      4. When stopped (or at end): `evaluate_code("$tracked")` to see all collected values
+      **CRITICAL: Breakpoint Line Placement Rules**
+      Before setting a breakpoint, use `read_file` to verify the target line.
+      - NEVER place a breakpoint on a block header line (a line containing `do |...|`, `.each`, `.map`, `.times`, etc.).
+        Block header lines execute only ONCE when the method is called, so the breakpoint will only hit once.
+      - ALWAYS place breakpoints on a line INSIDE the block body. Block body lines execute on every iteration.
+      - Example:
+        ```
+        10: data.each_with_index do |val, i|   # BAD: this line hits only once
+        11:   x = (x * val + i * 3) % 100      # GOOD: this line hits every iteration
+        12: end
+        ```
+        Use `break file.rb:11` (body line), NOT `break file.rb:10` (header line).
 
-      This completes in 2-3 API turns instead of many turns with repeated stepping.
+      **Efficient approach for loops with many iterations:**
+      1. `read_file` to check the source and identify the correct body line (not a block header)
+      2. `evaluate_code("$tracked = []")` - initialize tracking array
+      3. Use a conditional breakpoint on a block BODY line that records AND stops on condition:
+         `break file.rb:11 if: ($tracked << x; x == 1)`
+         This appends x to $tracked on EVERY iteration, but only stops when x == 1.
+      4. CRITICAL: In the SAME tool call batch, call `run_debug_command("c")` with `auto_continue: true`.
+         You MUST continue immediately after setting the breakpoint — do NOT stop and wait for user input.
+         When the breakpoint hits, you will be re-invoked with the new context.
+      5. When re-invoked after the breakpoint hits: `evaluate_code("$tracked")` to retrieve results,
+         then report the findings to the user.
+
+      Steps 3 and 4 MUST happen in the same turn. Example tool calls in one response:
+      - `run_debug_command("break file.rb:11 if: ($tracked << x; x == 1)")`
+      - `run_debug_command("c", auto_continue: true)`
+
+      This completes in 3-4 API turns instead of many turns with repeated stepping.
+
+      **Alternative: evaluate_code for pure tracking scenarios**
+      When the goal is purely to collect variable values and stop on a condition (without needing
+      to interact at the breakpoint), `evaluate_code` can run the loop directly. This is simpler
+      and avoids breakpoint line selection issues entirely:
+      ```ruby
+      evaluate_code <<~RUBY
+        $tracked = [x]
+        catch(:girb_stop) do
+          data.each_with_index do |val, i|
+            x = (x * val + i * 3) % 100
+            $tracked << x
+            throw(:girb_stop) if x == 1
+          end
+        end
+        { tracked_values: $tracked, stopped: (x == 1) }
+      RUBY
+      ```
+      Use this when the user wants to collect values and find when a condition is met,
+      and you can reconstruct the loop logic from the source code.
 
       **When to use repeated stepping (next/step):**
       - Understanding complex logic flow (few lines)
@@ -67,6 +108,11 @@ module Girb
       - "Track variable X until condition Y" requests
       - "Find when X becomes Y" requests
       - Collecting history of values
+
+      **When to use evaluate_code loop:**
+      - Pure value tracking without needing to stop and interact
+      - When you can reconstruct the loop logic from source code
+      - When breakpoint placement is complex (nested blocks, etc.)
 
       ## CRITICAL: Executing Debugger Commands
       When the user asks you to perform a debugging action (e.g., "go to the next line", "step into",
