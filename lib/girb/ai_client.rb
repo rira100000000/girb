@@ -2,6 +2,7 @@
 
 require_relative "auto_continue"
 require_relative "conversation_history"
+require_relative "session_persistence"
 require_relative "providers/base"
 require_relative "debug_context_builder"
 require_relative "debug_prompt_builder"
@@ -88,6 +89,9 @@ module Girb
           Girb::AutoContinue.clear_interrupt!
         end
       end
+    ensure
+      # 毎ターン会話履歴を保存（クラッシュやexitでの消失を防止）
+      SessionPersistence.save_session
     end
 
     private
@@ -177,9 +181,9 @@ module Girb
         end
 
         if response.function_call?
-          # Accumulate text that comes with function calls
+          # Print progress text immediately (don't accumulate for re-display at the end)
           if response.text && !response.text.empty?
-            accumulated_text << response.text
+            puts response.text
           end
 
           debug_command_called = false
@@ -201,7 +205,7 @@ module Girb
               result: result
             }
 
-            ConversationHistory.add_tool_call(tool_name, tool_args, result, id: tool_id)
+            ConversationHistory.add_tool_call(tool_name, tool_args, result, id: tool_id, metadata: function_call[:metadata])
 
             if Girb.configuration.debug && result.is_a?(Hash) && result[:error]
               puts "[girb] Tool error: #{result[:error]}"

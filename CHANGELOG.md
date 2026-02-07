@@ -1,6 +1,15 @@
 # Changelog
 
-## [0.3.1] - 2026-02-07
+## [0.3.2] - 2026-02-08
+
+### Added
+
+- Show real-time progress feedback during tool execution (AI now explains each step as it works)
+- Generic `metadata` field for tool calls to support provider-specific data pass-through (e.g. Gemini 3 `thought_signature`)
+
+### Changed
+
+- Improved breakpoint tracking pattern: self-initializing `$tracked ||= []` in conditions to prevent nil errors
 
 ### Fixed
 
@@ -8,6 +17,7 @@
   - SIGINT now sets interrupt flag instead of propagating to main thread's `Queue.pop`
   - Pending debug commands are properly discarded on interrupt
   - Original SIGINT handler is always restored via `ensure` block
+- Save session history on every AI turn instead of only at exit, preventing data loss on crash or unexpected exit
 
 ## [0.3.0] - 2026-02-07
 

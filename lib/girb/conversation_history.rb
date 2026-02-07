@@ -22,8 +22,8 @@ module Girb
         instance.add_assistant_message(content)
       end
 
-      def add_tool_call(tool_name, args, result, id: nil)
-        instance.add_tool_call(tool_name, args, result, id: id)
+      def add_tool_call(tool_name, args, result, id: nil, metadata: nil)
+        instance.add_tool_call(tool_name, args, result, id: id, metadata: metadata)
       end
 
       def to_contents
@@ -72,13 +72,14 @@ module Girb
       end
     end
 
-    def add_tool_call(tool_name, args, result, id: nil)
+    def add_tool_call(tool_name, args, result, id: nil, metadata: nil)
       @pending_tool_calls << {
         id: id || "call_#{SecureRandom.hex(12)}",
         name: tool_name,
         args: args,
-        result: result
-      }
+        result: result,
+        metadata: metadata
+      }.compact
     end
 
     def clear!
@@ -106,14 +107,18 @@ module Girb
 
         # Add tool calls and results if present
         msg.tool_calls&.each do |tc|
-          result << { role: :tool_call, id: tc[:id], name: tc[:name], args: tc[:args] }
+          tool_call = { role: :tool_call, id: tc[:id], name: tc[:name], args: tc[:args] }
+          tool_call[:metadata] = tc[:metadata] if tc[:metadata]
+          result << tool_call
           result << { role: :tool_result, id: tc[:id], name: tc[:name], result: tc[:result] }
         end
       end
 
       # Add pending tool calls
       @pending_tool_calls.each do |tc|
-        result << { role: :tool_call, id: tc[:id], name: tc[:name], args: tc[:args] }
+        tool_call = { role: :tool_call, id: tc[:id], name: tc[:name], args: tc[:args] }
+        tool_call[:metadata] = tc[:metadata] if tc[:metadata]
+        result << tool_call
         result << { role: :tool_result, id: tc[:id], name: tc[:name], result: tc[:result] }
       end
 

@@ -66,12 +66,11 @@ module Girb
 
         data = {
           session_id: @current_session_id,
-          saved_at: Time.now.iso8601,
+          saved_at: Time.now.to_s,
           messages: serialize_messages
         }
 
         File.write(file_path, JSON.pretty_generate(data))
-        puts "[girb] Session saved: #{@current_session_id}"
       rescue => e
         puts "[girb] Failed to save session: #{e.message}"
       end
@@ -157,7 +156,8 @@ module Girb
                   tc[:name],
                   tc[:args],
                   tc[:result],
-                  id: tc[:id]
+                  id: tc[:id],
+                  metadata: tc[:metadata]
                 )
               end
             end
