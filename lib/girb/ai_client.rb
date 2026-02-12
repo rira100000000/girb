@@ -236,13 +236,14 @@ module Girb
             accumulated_text << response.text
           end
 
-          if accumulated_text.any?
-            full_text = accumulated_text.join("\n")
+          full_text = accumulated_text.any? ? accumulated_text.join("\n") : ""
+          # 空でも必ずアシスタントメッセージを記録（user/assistantの交互を維持）
+          ConversationHistory.add_assistant_message(full_text)
+          if full_text.empty?
+            puts "[girb] Warning: Empty or unexpected response" if Girb.configuration.debug
+          else
             puts full_text
-            ConversationHistory.add_assistant_message(full_text)
             record_ai_response(full_text)
-          elsif Girb.configuration.debug
-            puts "[girb] Warning: Empty or unexpected response"
           end
           break
         end

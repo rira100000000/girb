@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0] - 2026-02-12
+
+### Added
+
+- Add web search support note for girb-gemini provider in README
+
+### Fixed
+
+- Always record assistant message in conversation history even when response text is empty
+  - Maintains user/assistant message alternation required by some providers (e.g. Gemini with web search)
+
+## [0.3.3] - 2026-02-08
+
+### Fixed
+
+- Fix Rails console prompt referencing non-existent tools (`model_info`, `query_model`)
+  - Corrected to actual tool names: `rails_model_info`, `rails_project_info`
+
 ## [0.3.2] - 2026-02-08
 
 ### Added

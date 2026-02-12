@@ -52,7 +52,7 @@ gem install girb girb-ruby_llm
 
 利用可能なプロバイダーgem:
 - [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI、Anthropic、Gemini、Ollama等（推奨）
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Geminiのみ
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Geminiのみ（web検索対応）
 
 ### APIキー
 

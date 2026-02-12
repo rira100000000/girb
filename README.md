@@ -54,7 +54,7 @@ gem install girb girb-ruby_llm
 
 Available provider gems:
 - [girb-ruby_llm](https://github.com/rira100000000/girb-ruby_llm) - OpenAI, Anthropic, Gemini, Ollama, etc. (Recommended)
-- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini only
+- [girb-gemini](https://github.com/rira100000000/girb-gemini) - Google Gemini only (supports web search)
 
 ### API Keys
 

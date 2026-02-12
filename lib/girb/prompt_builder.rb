@@ -171,9 +171,9 @@ module Girb
       The user is in a Rails console with full access to the application's models and services.
 
       ### Rails-Specific Capabilities
-      - You can query ActiveRecord models directly
-      - Use `model_info` tool to get schema information
-      - Use `query_model` tool to execute database queries safely
+      - You can query ActiveRecord models directly using `evaluate_code`
+      - Use `rails_model_info` tool to get model schema, associations, validations, and callbacks
+      - Use `rails_project_info` tool to get project info, environment, and list of models
       - Access to Rails helpers, routes, and application configuration
 
       ### Best Practices
