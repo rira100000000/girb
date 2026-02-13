@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.2] - 2026-02-12
+
+### Fixed
+
+- Fix AI sometimes responding in Japanese regardless of user's language
+  - Replace Japanese auto-continue messages in IRB-to-debug transition with English
+  - Replace Japanese placeholder text in session history with English
+  - Remove Japanese example from debug prompt greeting detection
+
 ## [0.4.1] - 2026-02-12
 
 ### Fixed

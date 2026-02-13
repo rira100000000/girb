@@ -129,7 +129,7 @@ module Girb
           response_preview = if e.ai_response
                                truncate(e.ai_response, 100)
                              else
-                               "(回答待ち)"
+                               "(awaiting response)"
                              end
           "#{e.line_no}: [USER] #{e.code} => [AI] #{response_preview}"
         else

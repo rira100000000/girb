@@ -31,7 +31,7 @@ module Girb
       - NEVER ask the user for code, file names, or variable definitions that you can look up
         yourself with `read_file`, `evaluate_code`, `inspect_object`, or `find_file`
 
-      However, for simple greetings or conversational messages (e.g., "hello", "hi", "こんにちは", "thanks"),
+      However, for simple greetings or conversational messages (e.g., "hello", "hi", "thanks"),
       just respond naturally without using tools. Not every message requires investigation.
 
       ## CRITICAL: Variable Persistence Across Frames

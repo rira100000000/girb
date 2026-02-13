@@ -27,13 +27,13 @@ module Girb
           original_question = Girb::IrbIntegration.pending_user_question
           Girb::IrbIntegration.pending_user_question = nil
           if original_question
-            continuation = "(auto-continue: デバッグモードに移行しました。最初のデバッグコマンドは既に実行されました。" \
-                           "同じコマンドを再度発行しないでください。\n" \
-                           "元の指示: 「#{original_question}」\n" \
-                           "次のステップに進んでください。例: continueで実行を継続、または結果を確認。)"
+            continuation = "(auto-continue: Transitioned to debug mode. The first debug command has already been executed. " \
+                           "Do NOT re-issue the same command.\n" \
+                           "Original instruction: \"#{original_question}\"\n" \
+                           "Proceed to the next step. e.g., continue execution or inspect results.)"
           else
-            continuation = "(auto-continue: デバッグモードに移行しました。最初のデバッグコマンドは既に実行されました。" \
-                           "次のステップに進んでください。)"
+            continuation = "(auto-continue: Transitioned to debug mode. The first debug command has already been executed. " \
+                           "Proceed to the next step.)"
           end
           Girb::DebugIntegration.add_pending_debug_command("qq #{continuation}")
         end
