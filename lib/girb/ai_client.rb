@@ -10,6 +10,7 @@ require_relative "debug_prompt_builder"
 module Girb
   class AiClient
     MAX_TOOL_ITERATIONS = 10
+    MAX_EMPTY_RETRIES = 2
 
     def initialize
       @provider = Girb.configuration.provider!
@@ -124,6 +125,7 @@ module Girb
 
     def process_with_tools(tools)
       iterations = 0
+      empty_retries = 0
       accumulated_text = []
 
       loop do
@@ -140,6 +142,23 @@ module Girb
         end
 
         messages = ConversationHistory.to_normalized
+        if Girb.configuration.debug
+          puts "[girb] --- Sending to provider (iteration #{iterations}) ---"
+          puts "[girb]   messages count: #{messages.length}"
+          messages.each_with_index do |msg, i|
+            case msg[:role]
+            when :tool_call
+              args_preview = msg[:args].inspect.slice(0, 150)
+              puts "[girb]   [#{i}] role=tool_call name=#{msg[:name]} args=#{args_preview}"
+            when :tool_result
+              result_preview = msg[:result].inspect.slice(0, 150)
+              puts "[girb]   [#{i}] role=tool_result name=#{msg[:name]} result=#{result_preview}"
+            else
+              content_preview = msg[:content].to_s.gsub("\n", "\\n").slice(0, 150)
+              puts "[girb]   [#{i}] role=#{msg[:role]} content=#{content_preview.inspect}"
+            end
+          end
+        end
         begin
           response = @provider.chat(
             messages: messages,
@@ -165,9 +184,11 @@ module Girb
         end
 
         if Girb.configuration.debug
-          puts "[girb] function_calls: #{response.function_calls.inspect}"
-          puts "[girb] text: #{response.text&.slice(0, 100).inspect}"
-          puts "[girb] error: #{response.error.inspect}" if response.error
+          puts "[girb] --- Response (iteration #{iterations}) ---"
+          puts "[girb]   text: #{response.text.nil? ? 'nil' : response.text.empty? ? '""' : response.text.slice(0, 200).inspect}"
+          puts "[girb]   function_call?: #{response.function_call?}"
+          puts "[girb]   function_calls: #{response.function_calls.inspect}" if response.function_call?
+          puts "[girb]   error: #{response.error.inspect}" if response.error
         end
 
         unless response
@@ -176,8 +197,23 @@ module Girb
         end
 
         if response.error && !response.function_call?
-          puts "[girb] API Error: #{response.error}"
-          break
+          empty_retries += 1
+          malformed_text, error_detail = extract_malformed_detail(response)
+          if Girb.configuration.debug
+            puts "[girb] API Error (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{error_detail}"
+          end
+          if empty_retries > MAX_EMPTY_RETRIES
+            ConversationHistory.add_assistant_message("")
+            puts "[girb] Error: #{error_detail}"
+            break
+          end
+          # Record the malformed output as assistant message so the LLM can see what it did wrong
+          ConversationHistory.add_assistant_message(malformed_text)
+          ConversationHistory.add_user_message(
+            "(System: Your previous response caused an error: #{error_detail}. " \
+            "Do NOT repeat the same mistake. Respond with plain text or use the structured function calling format.)"
+          )
+          next
         end
 
         if response.function_call?
@@ -237,11 +273,26 @@ module Girb
           end
 
           full_text = accumulated_text.any? ? accumulated_text.join("\n") : ""
-          # 空でも必ずアシスタントメッセージを記録（user/assistantの交互を維持）
-          ConversationHistory.add_assistant_message(full_text)
           if full_text.empty?
-            puts "[girb] Warning: Empty or unexpected response" if Girb.configuration.debug
+            empty_retries += 1
+            malformed_text, error_detail = extract_malformed_detail(response)
+            if Girb.configuration.debug
+              puts "[girb] Warning: Empty response (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{error_detail}"
+            end
+            if empty_retries > MAX_EMPTY_RETRIES
+              ConversationHistory.add_assistant_message("")
+              puts "[girb] Error: #{error_detail}"
+              break
+            end
+            # Record the malformed output as assistant message so the LLM can see what it did wrong
+            ConversationHistory.add_assistant_message(malformed_text)
+            ConversationHistory.add_user_message(
+              "(System: Your previous response caused an error: #{error_detail}. " \
+              "Do NOT repeat the same mistake. Respond with plain text or use the structured function calling format.)"
+            )
+            next
           else
+            ConversationHistory.add_assistant_message(full_text)
             puts full_text
             record_ai_response(full_text)
           end
@@ -267,6 +318,31 @@ module Girb
       end
     rescue StandardError => e
       { error: "Tool execution failed: #{e.class} - #{e.message}" }
+    end
+
+    # Returns [malformed_text, error_detail]
+    # malformed_text: the LLM's failed output (so it can see what it did wrong)
+    # error_detail: human-readable error description
+    def extract_malformed_detail(response)
+      if response.respond_to?(:raw_response) && response.raw_response
+        raw = response.raw_response
+        if raw.respond_to?(:candidates)
+          candidates = raw.candidates
+          if candidates.is_a?(Array) && candidates.first
+            candidate = candidates.first
+            finish_reason = candidate["finishReason"]
+            finish_message = candidate["finishMessage"]
+            if finish_reason && finish_reason != "STOP" && finish_message
+              return [finish_message, "#{finish_reason}: You generated a malformed function call using Python-style syntax. Use the structured function calling format instead."]
+            end
+          end
+        end
+      end
+      if response.error
+        return ["", "Error: #{response.error}"]
+      end
+
+      ["", "The response contained no text and no function calls."]
     end
 
     def record_ai_response(response)

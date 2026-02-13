@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.3] - 2026-02-12
+
+### Fixed
+
+- Fix silent failure on malformed function calls (e.g., Gemini generating Python-style syntax)
+  - Detect `MALFORMED_FUNCTION_CALL` from provider and feed the failed output back to the LLM
+  - LLM can now see its own mistake and self-correct using the proper function calling format
+  - Retry up to 2 times with error feedback, then show error to user instead of infinite loop
+- Reinforce Ruby environment context in system prompts to reduce malformed function calls
+- Add detailed debug logging for provider responses and messages (`c.debug = true`)
+
 ## [0.4.2] - 2026-02-12
 
 ### Fixed

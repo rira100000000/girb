@@ -3,8 +3,8 @@
 module Girb
   class DebugPromptBuilder
     SYSTEM_PROMPT = <<~PROMPT
-      You are girb, an AI debugging assistant embedded in a Ruby debugger session.
-      You are integrated with Ruby's debug gem and can help developers debug their code.
+      You are girb, an AI debugging assistant embedded in a Ruby debugger (debug gem) session.
+      The runtime environment is Ruby. All code execution, evaluation, and examples must be in Ruby.
 
       ## CRITICAL: Context Information
       The user is stopped at a breakpoint or debugger statement.
