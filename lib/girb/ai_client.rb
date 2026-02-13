@@ -198,19 +198,19 @@ module Girb
 
         if response.error && !response.function_call?
           empty_retries += 1
-          malformed_text, error_detail = extract_malformed_detail(response)
           if Girb.configuration.debug
-            puts "[girb] API Error (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{error_detail}"
+            puts "[girb] API Error (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{response.error}"
           end
-          if empty_retries > MAX_EMPTY_RETRIES
+          if empty_retries >= MAX_EMPTY_RETRIES
             ConversationHistory.add_assistant_message("")
-            puts "[girb] Error: #{error_detail}"
+            error_summary = response.error.to_s.split(":").first || "Unknown error"
+            puts "[girb] Error: Failed after #{MAX_EMPTY_RETRIES} retries (#{error_summary})"
             break
           end
-          # Record the malformed output as assistant message so the LLM can see what it did wrong
-          ConversationHistory.add_assistant_message(malformed_text)
+          # Record the LLM's output (if any) so it can see what it did wrong
+          ConversationHistory.add_assistant_message(response.text || "")
           ConversationHistory.add_user_message(
-            "(System: Your previous response caused an error: #{error_detail}. " \
+            "(System: Your previous response caused an error: #{response.error}. " \
             "Do NOT repeat the same mistake. Respond with plain text or use the structured function calling format.)"
           )
           next
@@ -275,19 +275,19 @@ module Girb
           full_text = accumulated_text.any? ? accumulated_text.join("\n") : ""
           if full_text.empty?
             empty_retries += 1
-            malformed_text, error_detail = extract_malformed_detail(response)
+            error_msg = response.error || "Empty response with no text and no function calls."
             if Girb.configuration.debug
-              puts "[girb] Warning: Empty response (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{error_detail}"
+              puts "[girb] Warning: Empty response (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{error_msg}"
             end
-            if empty_retries > MAX_EMPTY_RETRIES
+            if empty_retries >= MAX_EMPTY_RETRIES
               ConversationHistory.add_assistant_message("")
-              puts "[girb] Error: #{error_detail}"
+              error_summary = error_msg.to_s.split(":").first || "Unknown error"
+              puts "[girb] Error: Failed after #{MAX_EMPTY_RETRIES} retries (#{error_summary})"
               break
             end
-            # Record the malformed output as assistant message so the LLM can see what it did wrong
-            ConversationHistory.add_assistant_message(malformed_text)
+            ConversationHistory.add_assistant_message("")
             ConversationHistory.add_user_message(
-              "(System: Your previous response caused an error: #{error_detail}. " \
+              "(System: Your previous response caused an error: #{error_msg}. " \
               "Do NOT repeat the same mistake. Respond with plain text or use the structured function calling format.)"
             )
             next
@@ -318,31 +318,6 @@ module Girb
       end
     rescue StandardError => e
       { error: "Tool execution failed: #{e.class} - #{e.message}" }
-    end
-
-    # Returns [malformed_text, error_detail]
-    # malformed_text: the LLM's failed output (so it can see what it did wrong)
-    # error_detail: human-readable error description
-    def extract_malformed_detail(response)
-      if response.respond_to?(:raw_response) && response.raw_response
-        raw = response.raw_response
-        if raw.respond_to?(:candidates)
-          candidates = raw.candidates
-          if candidates.is_a?(Array) && candidates.first
-            candidate = candidates.first
-            finish_reason = candidate["finishReason"]
-            finish_message = candidate["finishMessage"]
-            if finish_reason && finish_reason != "STOP" && finish_message
-              return [finish_message, "#{finish_reason}: You generated a malformed function call using Python-style syntax. Use the structured function calling format instead."]
-            end
-          end
-        end
-      end
-      if response.error
-        return ["", "Error: #{response.error}"]
-      end
-
-      ["", "The response contained no text and no function calls."]
     end
 
     def record_ai_response(response)
