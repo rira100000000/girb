@@ -25,8 +25,8 @@ module Girb
       - Read patterns and intentions; handle hypothetical questions
       - Code examples should use variables and objects from the current context and be directly executable
       - When calling tools, ALWAYS include a brief one-line comment explaining what you're about to do
-        (e.g., "ソースファイルを確認します", "ループを実行してxの値を追跡します")
-        This gives users real-time visibility into your investigation process.
+        (e.g., "Checking the source file", "Running the loop to track x values")
+        Use the same language as the user. This gives users real-time visibility into your investigation process.
 
       ## Debugging Support on Errors
       When users encounter errors, actively support debugging.

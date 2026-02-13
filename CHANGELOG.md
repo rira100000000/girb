@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1] - 2026-02-12
+
+### Fixed
+
+- Fix AI always responding in Japanese regardless of user's language
+  - Replaced Japanese-only examples in system prompt with English examples
+  - Added explicit instruction to match user's language in tool comments
+
 ## [0.4.0] - 2026-02-12
 
 ### Added
