@@ -10,7 +10,6 @@ require_relative "debug_prompt_builder"
 module Girb
   class AiClient
     MAX_TOOL_ITERATIONS = 10
-    MAX_EMPTY_RETRIES = 2
 
     def initialize
       @provider = Girb.configuration.provider!
@@ -125,7 +124,6 @@ module Girb
 
     def process_with_tools(tools)
       iterations = 0
-      empty_retries = 0
       accumulated_text = []
 
       loop do
@@ -197,23 +195,11 @@ module Girb
         end
 
         if response.error && !response.function_call?
-          empty_retries += 1
-          if Girb.configuration.debug
-            puts "[girb] API Error (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{response.error}"
-          end
-          if empty_retries >= MAX_EMPTY_RETRIES
-            ConversationHistory.add_assistant_message("")
-            error_summary = response.error.to_s.split(":").first || "Unknown error"
-            puts "[girb] Error: Failed after #{MAX_EMPTY_RETRIES} retries (#{error_summary})"
-            break
-          end
-          # Record the LLM's output (if any) so it can see what it did wrong
-          ConversationHistory.add_assistant_message(response.text || "")
-          ConversationHistory.add_user_message(
-            "(System: Your previous response caused an error: #{response.error}. " \
-            "Do NOT repeat the same mistake. Respond with plain text or use the structured function calling format.)"
-          )
-          next
+          puts "[girb] API Error: #{response.error}" if Girb.configuration.debug
+          ConversationHistory.add_assistant_message("")
+          error_summary = response.error.to_s.split(":").first || "Unknown error"
+          puts "[girb] Error: #{error_summary}"
+          break
         end
 
         if response.function_call?
@@ -229,9 +215,7 @@ module Girb
             tool_args = function_call[:args] || {}
             tool_id = function_call[:id]
 
-            if Girb.configuration.debug
-              puts "[girb] Tool: #{tool_name}(#{tool_args.map { |k, v| "#{k}: #{v.inspect}" }.join(', ')})"
-            end
+            print_tool_call(tool_name, tool_args)
 
             result = execute_tool(tool_name, tool_args)
 
@@ -243,9 +227,7 @@ module Girb
 
             ConversationHistory.add_tool_call(tool_name, tool_args, result, id: tool_id, metadata: function_call[:metadata])
 
-            if Girb.configuration.debug && result.is_a?(Hash) && result[:error]
-              puts "[girb] Tool error: #{result[:error]}"
-            end
+            print_tool_result(tool_name, result)
 
             # If run_debug_command was called, we need to exit the tool loop
             # so the debugger/IRB can execute the pending commands
@@ -273,24 +255,12 @@ module Girb
           end
 
           full_text = accumulated_text.any? ? accumulated_text.join("\n") : ""
+          # Always record assistant message even when empty (maintain user/assistant alternation)
+          ConversationHistory.add_assistant_message(full_text)
           if full_text.empty?
-            empty_retries += 1
-            error_msg = response.error || "Empty response with no text and no function calls."
             if Girb.configuration.debug
-              puts "[girb] Warning: Empty response (retry #{empty_retries}/#{MAX_EMPTY_RETRIES}): #{error_msg}"
+              puts "[girb] Warning: Empty response"
             end
-            if empty_retries >= MAX_EMPTY_RETRIES
-              ConversationHistory.add_assistant_message("")
-              error_summary = error_msg.to_s.split(":").first || "Unknown error"
-              puts "[girb] Error: Failed after #{MAX_EMPTY_RETRIES} retries (#{error_summary})"
-              break
-            end
-            ConversationHistory.add_assistant_message("")
-            ConversationHistory.add_user_message(
-              "(System: Your previous response caused an error: #{error_msg}. " \
-              "Do NOT repeat the same mistake. Respond with plain text or use the structured function calling format.)"
-            )
-            next
           else
             ConversationHistory.add_assistant_message(full_text)
             puts full_text
@@ -318,6 +288,32 @@ module Girb
       end
     rescue StandardError => e
       { error: "Tool execution failed: #{e.class} - #{e.message}" }
+    end
+
+    def print_tool_call(name, args)
+      puts ""
+      puts "[girb] #{name}"
+      args.each do |key, value|
+        str = value.to_s
+        if str.include?("\n")
+          puts "  #{key}:"
+          str.each_line { |line| puts "    #{line}" }
+        else
+          puts "  #{key}: #{str}"
+        end
+      end
+    end
+
+    def print_tool_result(_name, result)
+      return unless result.is_a?(Hash)
+
+      if result[:error]
+        puts "[girb] => Error: #{result[:error]}"
+      elsif result[:stdout] && !result[:stdout].empty?
+        puts "[girb] => #{result[:stdout]}"
+      elsif result[:result]
+        puts "[girb] => #{result[:result]}"
+      end
     end
 
     def record_ai_response(response)

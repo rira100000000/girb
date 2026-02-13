@@ -1,17 +1,16 @@
 # Changelog
 
-## [0.4.3] - 2026-02-12
+## [0.4.2] - 2026-02-13
 
-### Fixed
+### Added
 
-- Fix silent failure when provider returns an error response
-  - Feed `response.error` and `response.text` back to the LLM so it can see its mistake and self-correct
-  - Retry up to 2 times with error feedback, then show error to user instead of silent failure
-  - Provider-agnostic: works with any provider that sets `response.error`
-- Reinforce Ruby environment context in system prompts to reduce malformed function calls
+- Show tool execution details (name, arguments, results) in human-readable format during AI operation
 - Add detailed debug logging for provider responses and messages (`c.debug = true`)
 
-## [0.4.2] - 2026-02-12
+### Changed
+
+- Reinforce Ruby environment context in system prompts to reduce provider-specific function call errors
+- Provider-agnostic error handling: display `response.error` summary to user without retrying
 
 ### Fixed
 
